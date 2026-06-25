@@ -1,7 +1,11 @@
 {
     "name": "Wagenheimer.CloudSave",
-    "rootNamespace": "",
-    "references": [],
+    "rootNamespace": "Wagenheimer.CloudSave",
+    "references": [
+        "Unity.Services.Core",
+        "Unity.Services.Authentication",
+        "Unity.Services.CloudSave"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

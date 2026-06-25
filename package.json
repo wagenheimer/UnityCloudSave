@@ -1,14 +1,18 @@
 {
   "name": "com.wagenheimer.cloudsave",
-  "version": "1.0.2",
+  "version": "2.0.0",
   "displayName": "Cloud Save",
-  "description": "Automatic cloud save for Unity games. Supports Google Play Games Services Saved Games (Android) and iCloud Key-Value Store (iOS). Generic byte[] API — bring your own serializer. Includes an iOS PostProcessBuild script that adds the iCloud capability to Xcode automatically.",
+  "description": "Cross-platform cloud save for Unity games using Unity Cloud Save (UGS). Handles anonymous auth, timestamp-based conflict resolution, and offline fallback. Simple byte[] API — bring your own serializer.",
   "unity": "2021.3",
   "author": {
     "name": "Cezar Wagenheimer",
     "url": "https://github.com/wagenheimer"
   },
-  "keywords": ["cloud", "save", "google play", "icloud", "android", "ios", "gpgs"],
+  "keywords": ["cloud", "save", "unity services", "ugs", "conflict resolution"],
   "category": "Tools",
-  "dependencies": {}
+  "dependencies": {
+    "com.unity.services.core": "1.12.0",
+    "com.unity.services.authentication": "2.7.0",
+    "com.unity.services.cloudsave": "3.0.0"
+  }
 }
