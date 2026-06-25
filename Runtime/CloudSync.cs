@@ -15,9 +15,14 @@ namespace Wagenheimer.CloudSave
     /// Usage:
     ///   1. CloudSync.Configure("my_game_save");
     ///   2. _ = CloudSync.InitAndSyncAsync(localTimestamp, ApplyCloudSave);
-    ///   3. _ = CloudSync.SaveAsync(bytes, timestamp);  // after every local save
-    ///   4. _ = CloudAuth.LinkGooglePlayGamesAsync(code) // Android, after GPGS auth
-    ///   5. _ = CloudAuth.LinkAppleGameCenterAsync(...)  // iOS, after Game Center auth
+    ///   3. _ = CloudSync.SaveAsync(bytes, timestamp);         // after every local save
+    ///   4. _ = CloudAuth.LinkGooglePlayGamesAsync(code);      // Android, after GPGS auth
+    ///   5. _ = CloudAuth.LinkAppleGameCenterAsync(...);       // iOS, after Game Center auth
+    ///
+    /// UI hooks:
+    ///   CloudSync.OnSyncStarted   += () => ShowLoadingOverlay();
+    ///   CloudSync.OnSyncCompleted += result => HideLoadingOverlay();
+    ///   CloudSync.ConflictResolver = async data => await ShowConflictDialog(data);
     /// </summary>
     public static class CloudSync
     {
@@ -28,6 +33,20 @@ namespace Wagenheimer.CloudSave
         /// <summary>True once UGS init + anonymous sign-in are complete.</summary>
         public static bool IsAvailable => CloudAuth.IsReady;
 
+        /// <summary>Fires when a sync operation begins (before network calls).</summary>
+        public static event Action OnSyncStarted;
+
+        /// <summary>Fires when a sync operation completes, with the outcome.</summary>
+        public static event Action<CloudSyncResult> OnSyncCompleted;
+
+        /// <summary>
+        /// Optional async delegate called when the cloud save is newer than the local one.
+        /// Return <see cref="CloudConflictChoice.UseCloud"/> to apply the cloud save,
+        /// or <see cref="CloudConflictChoice.UseLocal"/> to keep the local save.
+        /// When null, cloud always wins (default behaviour).
+        /// </summary>
+        public static Func<CloudConflictData, Task<CloudConflictChoice>> ConflictResolver { get; set; }
+
         /// <summary>Sets the cloud storage key prefix. Call once before InitAndSyncAsync.</summary>
         public static void Configure(string slotName)
         {
@@ -36,24 +55,64 @@ namespace Wagenheimer.CloudSave
         }
 
         /// <summary>
-        /// Initializes Unity Services with anonymous auth, then invokes
-        /// <paramref name="onCloudNewer"/> if the cloud save is newer than
-        /// <paramref name="localTimestamp"/>. Safe to fire-and-forget.
+        /// Initializes Unity Services with anonymous auth, then optionally invokes
+        /// <paramref name="onCloudNewer"/> if the cloud save wins conflict resolution.
+        /// Fires <see cref="OnSyncStarted"/> and <see cref="OnSyncCompleted"/>.
+        /// Safe to fire-and-forget.
         /// </summary>
-        public static async Task InitAndSyncAsync(long localTimestamp, Action<byte[]> onCloudNewer)
+        public static async Task InitAndSyncAsync(long localTimestamp, Action<byte[]> onCloudNewer,
+            CloudConflictReason conflictReason = CloudConflictReason.CloudIsNewer)
         {
+            OnSyncStarted?.Invoke();
+            var result = CloudSyncResult.Error;
             try
             {
                 await CloudAuth.EnsureSignedInAsync();
-                if (!IsAvailable) return;
+                if (!IsAvailable)
+                {
+                    result = CloudSyncResult.Offline;
+                    return;
+                }
 
-                var cloudBytes = await LoadIfNewerAsync(localTimestamp);
-                if (cloudBytes != null)
+                var (cloudBytes, cloudTs) = await LoadCloudDataAsync();
+
+                if (cloudBytes == null)
+                {
+                    result = CloudSyncResult.NoCloudSave;
+                    return;
+                }
+
+                if (cloudTs <= localTimestamp)
+                {
+                    result = CloudSyncResult.LocalNewer;
+                    return;
+                }
+
+                var choice = CloudConflictChoice.UseCloud;
+                if (ConflictResolver != null)
+                {
+                    var data = new CloudConflictData(localTimestamp, cloudTs, cloudBytes, conflictReason);
+                    choice = await ConflictResolver(data);
+                }
+
+                if (choice == CloudConflictChoice.UseCloud)
+                {
                     onCloudNewer?.Invoke(cloudBytes);
+                    result = CloudSyncResult.CloudApplied;
+                }
+                else
+                {
+                    result = CloudSyncResult.UserChoseLocal;
+                }
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[CloudSync] InitAndSync error: {e.Message}");
+                result = CloudSyncResult.Error;
+            }
+            finally
+            {
+                OnSyncCompleted?.Invoke(result);
             }
         }
 
@@ -80,9 +139,7 @@ namespace Wagenheimer.CloudSave
             }
         }
 
-        // ── private ──────────────────────────────────────────────────────────
-
-        private static async Task<byte[]> LoadIfNewerAsync(long localTimestamp)
+        private static async Task<(byte[] bytes, long timestamp)> LoadCloudDataAsync()
         {
             try
             {
@@ -91,22 +148,16 @@ namespace Wagenheimer.CloudSave
 
                 if (!results.TryGetValue(_dataKey, out var dataItem) ||
                     !results.TryGetValue(_tsKey,   out var tsItem))
-                    return null;
+                    return (null, 0);
 
-                long cloudTs = tsItem.Value.GetAs<long>();
-                if (cloudTs <= localTimestamp)
-                {
-                    Debug.Log("[CloudSync] Local save is up-to-date.");
-                    return null;
-                }
-
-                Debug.Log($"[CloudSync] Cloud save is newer (cloud={cloudTs} > local={localTimestamp}).");
-                return Convert.FromBase64String(dataItem.Value.GetAs<string>());
+                long cloudTs  = tsItem.Value.GetAs<long>();
+                byte[] bytes  = Convert.FromBase64String(dataItem.Value.GetAs<string>());
+                return (bytes, cloudTs);
             }
             catch (CloudSaveException e) when (e.Reason == CloudSaveExceptionReason.NotFound)
             {
                 Debug.Log("[CloudSync] No cloud save found yet.");
-                return null;
+                return (null, 0);
             }
         }
     }

@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.1.0] - 2026-06-25
+
+### Added
+- `CloudSyncEvent.cs` — event types for UI integration (`CloudSyncResult`, `CloudConflictData`, `CloudConflictChoice`, `CloudConflictReason`)
+- `CloudSync.OnSyncStarted` — fires when sync begins
+- `CloudSync.OnSyncCompleted` — fires with `CloudSyncResult` when sync ends
+- `CloudSync.ConflictResolver` — `Func<CloudConflictData, Task<CloudConflictChoice>>` delegate for custom conflict UI (cloud wins by default when null)
+- `CloudAuth.OnAccountSwitched` — fires when `SignedInExisting` (player recovered a previous account); PlayerId has changed
+
+### Changed
+- `CloudSync.InitAndSyncAsync` now fires events and invokes `ConflictResolver` when cloud is newer
+- `CloudAuth.FinalizeLink` now fires `OnAccountSwitched` when status is `SignedInExisting`
+
+---
+
 ## [3.0.0] - 2026-06-25
 
 ### Added

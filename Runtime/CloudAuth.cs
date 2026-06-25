@@ -42,6 +42,13 @@ namespace Wagenheimer.CloudSave
         /// <summary>Fires after a successful link or sign-in to a provider.</summary>
         public static event Action<CloudAuthProvider> OnLinked;
 
+        /// <summary>
+        /// Fires when sign-in results in a different account than the current anonymous one
+        /// (i.e. <see cref="CloudLinkStatus.SignedInExisting"/>). The PlayerId changes.
+        /// Re-run cloud sync after this event to pull saves from the recovered account.
+        /// </summary>
+        public static event Action<CloudAuthProvider> OnAccountSwitched;
+
         // ── Init ─────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -202,6 +209,8 @@ namespace Wagenheimer.CloudSave
             _provider = provider;
             Debug.Log($"[CloudAuth] {status}: provider={provider} PlayerId={PlayerId}");
             OnLinked?.Invoke(provider);
+            if (status == CloudLinkStatus.SignedInExisting)
+                OnAccountSwitched?.Invoke(provider);
             return CloudLinkResult.Ok(status);
         }
 
