@@ -1,21 +1,25 @@
 # Unity Cloud Save
 
-Automatic cloud save for Unity games. Drop-in `byte[]` API — you handle serialization, this package handles the cloud transport.
+Cross-platform cloud save for Unity games, backed by **Unity Cloud Save (UGS)**.  
+Drop-in `byte[]` API — you handle serialization, this package handles the cloud transport and auth.
 
-| Platform | Backend | Conflict Resolution |
-|---|---|---|
-| Android | Google Play Games Services — Saved Games | Most Recently Saved |
-| iOS | iCloud Key-Value Store | Automatic (OS-managed) |
+| Platform | Auth (default) | Auth (upgraded) | Cloud Backend |
+|---|---|---|---|
+| Android | Anonymous | Google Play Games | Unity Cloud Save |
+| iOS | Anonymous | Apple Game Center | Unity Cloud Save |
+| Any | Anonymous | — | Unity Cloud Save |
 
-**Includes** an iOS `PostProcessBuild` script that adds the iCloud capability to Xcode automatically — no manual Xcode steps needed.
+**Conflict resolution:** last-write-wins via a `long` UTC-ticks timestamp you store in your save data.
 
 ---
 
 ## Requirements
 
 - Unity 2021.3+
-- **Android:** [Google Play Games Plugin for Unity](https://github.com/playgameservices/play-games-plugin-for-unity) installed separately
-- **iOS:** An Apple Developer account with iCloud enabled for your App ID
+- A [Unity Gaming Services](https://dashboard.unity3d.com/) project with **Cloud Save** enabled
+- **Android upgrade (optional):** Google Play Games Plugin for Unity (OpenUPM `com.google.play.games`)
+- **iOS upgrade (optional):** A native bridge for `GKLocalPlayer.generateIdentityVerificationSignature`  
+  (e.g. [Apple.GameKit](https://github.com/Apple/unityplugins) or a custom `.mm` plugin)
 
 ---
 
@@ -27,25 +31,37 @@ Automatic cloud save for Unity games. Drop-in `byte[]` API — you handle serial
 2. Click **+** → **Add package from git URL…**
 3. Enter:
    ```
-   https://github.com/wagenheimer/unity-cloud-save.git
+   https://github.com/wagenheimer/UnityCloudSave.git
    ```
 
 ### Via `manifest.json`
 
-Add to `Packages/manifest.json`:
 ```json
 {
   "dependencies": {
-    "com.wagenheimer.cloudsave": "https://github.com/wagenheimer/unity-cloud-save.git"
+    "com.wagenheimer.cloudsave": "https://github.com/wagenheimer/UnityCloudSave.git"
   }
 }
 ```
 
+The package automatically pulls in its UGS dependencies:
+- `com.unity.services.core`
+- `com.unity.services.authentication`
+- `com.unity.services.cloudsave`
+
 ### Pin to a specific version
 
 ```json
-"com.wagenheimer.cloudsave": "https://github.com/wagenheimer/unity-cloud-save.git#1.0.0"
+"com.wagenheimer.cloudsave": "https://github.com/wagenheimer/UnityCloudSave.git#3.0.0"
 ```
+
+---
+
+## Unity Dashboard Setup
+
+1. Go to [dashboard.unity3d.com](https://dashboard.unity3d.com/) → your project
+2. **Cloud Save** → Enable
+3. In Unity: **Edit → Project Settings → Services** → link your project
 
 ---
 
@@ -54,171 +70,243 @@ Add to `Packages/manifest.json`:
 ### 1 — Configure the save key (once, at startup)
 
 ```csharp
-// Use the same key on Android and iOS so saves roam between platforms.
-GooglePlayCloudSaveService.SlotName = "my_game_save";
-iCloudSaveService.SaveKey           = "my_game_save";
+CloudSync.Configure("my_game_save");
 ```
 
-### 2 — Trigger an early iCloud sync (iOS)
-
-Call this as early as possible so the OS has time to pull fresh data from
-iCloud before you load.
+### 2 — Init and sync on load
 
 ```csharp
-iCloudSaveService.RequestSync();
+// Fire-and-forget. Calls ApplyCloudSave only if the cloud save is newer.
+_ = CloudSync.InitAndSyncAsync(SaveData.LastSaved, ApplyCloudSave);
 ```
 
 ### 3 — Save to the cloud
 
-Call this every time you write a local save file.
-
 ```csharp
+// Call this every time you write a local save.
+SaveData.LastSaved = DateTime.UtcNow.Ticks;
 byte[] bytes = Encoding.UTF8.GetBytes(JsonUtility.ToJson(saveData));
 File.WriteAllBytes(localPath, bytes);
-
-// Cloud — fire and forget, both are no-ops on other platforms
-GooglePlayCloudSaveService.Save(bytes);
-iCloudSaveService.Save(bytes);
+_ = CloudSync.SaveAsync(bytes, SaveData.LastSaved);
 ```
 
-### 4 — Load from the cloud
-
-#### Android (async callback)
+### 4 — Apply cloud save callback
 
 ```csharp
-// Call after successful GPGS sign-in
-GooglePlayCloudSaveService.Enabled = true;
-
-GooglePlayCloudSaveService.Load(cloudBytes =>
-{
-    if (cloudBytes == null) return;
-
-    var cloudSave = JsonUtility.FromJson<SaveData>(Encoding.UTF8.GetString(cloudBytes));
-
-    // Apply only if the cloud save is newer than the local one
-    if (cloudSave.LastSaved > localSave.LastSaved)
-    {
-        localSave = cloudSave;
-        ApplySaveData();
-    }
-});
-```
-
-#### iOS (synchronous)
-
-```csharp
-// Call after Game Center auth (or independently — iCloud doesn't need GC)
-byte[] cloudBytes = iCloudSaveService.Load();
-
-if (cloudBytes != null)
+private void ApplyCloudSave(byte[] cloudBytes)
 {
     var cloudSave = JsonUtility.FromJson<SaveData>(Encoding.UTF8.GetString(cloudBytes));
-
-    if (cloudSave.LastSaved > localSave.LastSaved)
-    {
-        localSave = cloudSave;
-        ApplySaveData();
-    }
+    if (cloudSave == null) return;
+    SaveData = cloudSave;
+    // apply to game state...
 }
 ```
 
 > **Tip:** Add a `long LastSaved` field to your save data class and set it to
-> `DateTime.UtcNow.Ticks` on every save. Use that to decide which version to keep.
+> `DateTime.UtcNow.Ticks` on every save. The package uses this to decide which version to keep.
 
 ---
 
-## Android Setup
+## Auth: Anonymous (default)
 
-### 1 — Install Google Play Games Plugin
+On first run, the SDK creates an anonymous account tied to a device UUID stored locally.  
+The player never sees a login screen. Saves roam between app reinstalls **on the same device**.
 
-Download and import from:  
-https://github.com/playgameservices/play-games-plugin-for-unity/releases
+```
+Same device, reinstalled  → same UUID → same cloud save ✓
+Different device          → different UUID → no access to old save ✗  (until upgraded)
+```
 
-### 2 — Enable Saved Games in Play Console
+---
 
-1. Google Play Console → your app → **Play Games Services** → **Configuration**
-2. Scroll to **Saved Games** → enable it
-3. Save changes
+## Auth: Upgrade to Google Play Games (Android)
 
-### 3 — Sign in and set Enabled
+After GPGS sign-in, request a server auth code and call `LinkGooglePlayGamesAsync`.  
+The anonymous account is **permanently upgraded** — the `PlayerId` stays the same.
 
 ```csharp
-PlayGamesPlatform.Activate();
-PlayGamesPlatform.Instance.Authenticate(status =>
+// Call after successful GPGS Authenticate()
+PlayGamesPlatform.Instance.RequestServerSideAccess(
+    forceRefreshToken: false,
+    code =>
+    {
+        _ = UpgradeCloudAuthAsync(code);
+    });
+
+async Task UpgradeCloudAuthAsync(string serverAuthCode)
 {
-    if (status == SignInStatus.Success)
-        GooglePlayCloudSaveService.Enabled = true;
+    var result = await CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);
+
+    if (result.Status == CloudLinkStatus.Linked)
+    {
+        Debug.Log("Conta vinculada ao Google Play Games.");
+    }
+    else if (result.Status == CloudLinkStatus.SignedInExisting)
+    {
+        // Player had an existing account (e.g. reinstalled on new device).
+        // The PlayerId has switched — re-sync to pull the existing cloud save.
+        Debug.Log("Conta existente detectada — sincronizando save da nuvem.");
+        await CloudSync.InitAndSyncAsync(SaveData.LastSaved, ApplyCloudSave);
+    }
+    else
+    {
+        Debug.LogWarning($"Link falhou: {result.Message}");
+    }
+}
+```
+
+After upgrading, the save is accessible from **any device** where the player signs in to GPGS.
+
+---
+
+## Auth: Upgrade to Apple Game Center (iOS)
+
+Game Center auth uses Apple's identity verification signature — you need a native bridge to
+call `GKLocalPlayer.generateIdentityVerificationSignature` from C#.
+
+### Option A — Apple.GameKit Unity Plugin (recommended)
+
+Install [Apple.GameKit](https://github.com/Apple/unityplugins) and use:
+
+```csharp
+var player = GKLocalPlayer.Local;
+var (publicKeyUrl, signature, salt, timestamp) =
+    await player.FetchItemsForIdentityVerificationSignatureAsync();
+
+var result = await CloudAuth.LinkAppleGameCenterAsync(
+    publicKeyUrl : publicKeyUrl,
+    signature    : Convert.ToBase64String(signature),
+    salt         : Convert.ToBase64String(salt),
+    timestamp    : timestamp,
+    teamPlayerId : player.TeamPlayerId);
+```
+
+### Option B — Custom native plugin (`.mm`)
+
+Create `Assets/Plugins/iOS/GameCenterBridge.mm`:
+
+```objc
+extern "C" void GC_GetIdentitySignature(
+    void (*callback)(const char* pubKeyUrl, const char* sig, const char* salt,
+                     uint64_t ts, const char* teamId))
+{
+    GKLocalPlayer* lp = [GKLocalPlayer localPlayer];
+    [lp generateIdentityVerificationSignatureWithCompletionHandler:
+        ^(NSURL* pubKeyURL, NSData* signature, NSData* salt, uint64_t timestamp, NSError* error)
+    {
+        if (error) { callback("", "", "", 0, ""); return; }
+        NSString* sig64  = [signature base64EncodedStringWithOptions:0];
+        NSString* salt64 = [salt base64EncodedStringWithOptions:0];
+        callback(pubKeyURL.absoluteString.UTF8String,
+                 sig64.UTF8String, salt64.UTF8String,
+                 timestamp, lp.teamPlayerID.UTF8String);
+    }];
+}
+```
+
+Then from C# (inside `#if UNITY_IOS`):
+
+```csharp
+[DllImport("__Internal")]
+static extern void GC_GetIdentitySignature(
+    Action<string, string, string, ulong, string> callback);
+
+// Call after Social.localUser.Authenticate succeeds:
+GC_GetIdentitySignature(async (pubKeyUrl, sig, salt, ts, teamId) =>
+{
+    var result = await CloudAuth.LinkAppleGameCenterAsync(pubKeyUrl, sig, salt, ts, teamId);
+    if (result.Status == CloudLinkStatus.SignedInExisting)
+        await CloudSync.InitAndSyncAsync(SaveData.LastSaved, ApplyCloudSave);
 });
 ```
 
 ---
 
-## iOS Setup
+## Auth: Upgrade to Sign in with Apple (iOS)
 
-### Automatic (recommended)
+For apps using [Sign in with Apple](https://github.com/lupidan/apple-signin-unity):
 
-The included `iOSPostBuildProcessor` script runs automatically after every iOS
-build and adds the iCloud Key-Value Storage capability to the Xcode project.
-No Xcode changes needed.
+```csharp
+var credential = await AppleAuthManager.LoginWithAppleId(...);
+var result = await CloudAuth.LinkAppleAsync(credential.IdentityToken);
 
-### Manual (if you skip PostBuild)
+if (result.Status == CloudLinkStatus.SignedInExisting)
+    await CloudSync.InitAndSyncAsync(SaveData.LastSaved, ApplyCloudSave);
+```
 
-1. Xcode → your target → **Signing & Capabilities**
-2. **+ Capability** → **iCloud**
-3. Check **Key-value storage**
+---
 
-### Apple Developer Portal (one-time)
+## Auth State
 
-1. [developer.apple.com](https://developer.apple.com) → **Certificates, Identifiers & Profiles**
-2. **Identifiers** → your App ID → **Edit**
-3. Enable **iCloud** → Save
+```csharp
+CloudAuth.IsReady          // true once UGS is initialized and signed in
+CloudAuth.IsAnonymous      // true = not yet linked to a provider
+CloudAuth.IsLinked         // true = linked to GPGS, Apple, or Game Center
+CloudAuth.Provider         // CloudAuthProvider enum value
+CloudAuth.PlayerId         // stable Unity player ID
+
+CloudAuth.OnLinked += provider => Debug.Log($"Linked to {provider}");
+```
 
 ---
 
 ## API Reference
 
-### `GooglePlayCloudSaveService` (Android)
+### `CloudSync`
 
-| Member | Type | Description |
-|---|---|---|
-| `SlotName` | `string` | GPGS save slot name. Default: `"game_save"` |
-| `Enabled` | `bool` | Set `true` after successful sign-in |
-| `Save(byte[])` | `void` | Async upload. No-op if not enabled |
-| `Load(Action<byte[]>)` | `void` | Async download via callback |
+| Method / Property | Description |
+|---|---|
+| `Configure(slotName)` | Sets the cloud key prefix. Call once at startup. |
+| `InitAndSyncAsync(localTs, onCloudNewer)` | Init auth + pulls cloud save if newer. Fire-and-forget safe. |
+| `SaveAsync(bytes, timestamp)` | Uploads save. No-op when offline. Fire-and-forget safe. |
+| `IsAvailable` | True once auth + init are complete. |
 
-### `iCloudSaveService` (iOS)
+### `CloudAuth`
 
-| Member | Type | Description |
-|---|---|---|
-| `SaveKey` | `string` | iCloud KV store key. Default: `"game_save"` |
-| `RequestSync()` | `void` | Triggers background iCloud pull. Call at startup |
-| `Save(byte[])` | `void` | Writes to local KV cache + requests sync |
-| `Load()` | `byte[]` | Reads from local KV cache (synchronous) |
+| Method / Property | Description |
+|---|---|
+| `EnsureSignedInAsync()` | Init UGS + anonymous sign-in. Idempotent. Called by `CloudSync` automatically. |
+| `LinkGooglePlayGamesAsync(code)` | Android: link/sign-in via GPGS server auth code. |
+| `LinkAppleAsync(idToken)` | iOS: link/sign-in via Sign in with Apple identity token. |
+| `LinkAppleGameCenterAsync(...)` | iOS: link/sign-in via Game Center signature. |
+| `IsReady` | True once initialized and signed in. |
+| `IsAnonymous` | Signed in but no linked provider. |
+| `IsLinked` | Linked to an external provider. |
+| `Provider` | `CloudAuthProvider` enum. |
+| `PlayerId` | Unity player ID (stable, preserved after linking). |
+| `OnLinked` | `event Action<CloudAuthProvider>` fired on link success. |
 
-All methods are **no-ops** on platforms they don't support, so you can call
-them unconditionally without `#if` guards.
+### `CloudLinkResult`
+
+| Status | Meaning |
+|---|---|
+| `Linked` | Account linked for the first time. PlayerId unchanged. |
+| `SignedInExisting` | Credential was already linked to another account. PlayerId switched. Re-sync cloud save. |
+| `AlreadyLinked` | This account is already linked to this provider. |
+| `Failed` | Error. Check `result.Message`. |
 
 ---
 
 ## How Conflict Resolution Works
 
-| Platform | Strategy |
-|---|---|
-| Android | `UseMostRecentlySaved` — GPGS picks the slot written most recently |
-| iOS | OS-managed — iCloud merges automatically; last-write-wins per key |
+Every save stores a `long LastSaved` timestamp (UTC ticks). On sync:
 
-For your own logic, the recommended pattern is a `LastSaved` timestamp in your
-save data (see Quick Start above).
+1. Cloud save timestamp is compared to local timestamp
+2. If cloud is newer → `onCloudNewer` callback is invoked with the cloud bytes
+3. If local is newer or equal → no change (local save is authoritative)
+
+This is last-write-wins across devices using wall-clock time.
 
 ---
 
-## Limitations
+## Limits
 
-| Limit | Android | iOS |
-|---|---|---|
-| Max save size | 3 MB per slot | 1 MB per key (1 MB total per app) |
-| Requires internet | Yes (for first sync) | No (reads from local cache) |
-| Requires auth | Yes (GPGS sign-in) | No (iCloud account on device) |
+| Limit | Value |
+|---|---|
+| Max key size | 255 characters |
+| Max value size | 5 MB per key |
+| Max keys per player | 300 |
+| Requires internet | For first sync; fails silently offline |
 
 ---
 

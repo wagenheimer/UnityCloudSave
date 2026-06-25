@@ -1,22 +1,23 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Unity.Services.Authentication;
 using Unity.Services.CloudSave;
 using Unity.Services.CloudSave.Models;
-using Unity.Services.Core;
 using UnityEngine;
 
 namespace Wagenheimer.CloudSave
 {
     /// <summary>
     /// Cross-platform cloud save backed by Unity Cloud Save (UGS).
-    /// Handles anonymous auth, timestamp-based conflict resolution, and offline fallback.
+    /// Auth is handled by <see cref="CloudAuth"/> (anonymous by default; upgradeable to
+    /// Google Play Games or Apple). Timestamp-based conflict resolution, offline fallback.
     ///
     /// Usage:
     ///   1. CloudSync.Configure("my_game_save");
     ///   2. _ = CloudSync.InitAndSyncAsync(localTimestamp, ApplyCloudSave);
     ///   3. _ = CloudSync.SaveAsync(bytes, timestamp);  // after every local save
+    ///   4. _ = CloudAuth.LinkGooglePlayGamesAsync(code) // Android, after GPGS auth
+    ///   5. _ = CloudAuth.LinkAppleGameCenterAsync(...)  // iOS, after Game Center auth
     /// </summary>
     public static class CloudSync
     {
@@ -24,7 +25,8 @@ namespace Wagenheimer.CloudSave
         private static string _dataKey = DefaultSlot;
         private static string _tsKey   = DefaultSlot + "_ts";
 
-        public static bool IsAvailable { get; private set; }
+        /// <summary>True once UGS init + anonymous sign-in are complete.</summary>
+        public static bool IsAvailable => CloudAuth.IsReady;
 
         /// <summary>Sets the cloud storage key prefix. Call once before InitAndSyncAsync.</summary>
         public static void Configure(string slotName)
@@ -42,7 +44,7 @@ namespace Wagenheimer.CloudSave
         {
             try
             {
-                await InitAsync();
+                await CloudAuth.EnsureSignedInAsync();
                 if (!IsAvailable) return;
 
                 var cloudBytes = await LoadIfNewerAsync(localTimestamp);
@@ -79,16 +81,6 @@ namespace Wagenheimer.CloudSave
         }
 
         // ── private ──────────────────────────────────────────────────────────
-
-        private static async Task InitAsync()
-        {
-            if (IsAvailable) return;
-            await UnityServices.InitializeAsync();
-            if (!AuthenticationService.Instance.IsSignedIn)
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
-            IsAvailable = true;
-            Debug.Log($"[CloudSync] Ready. PlayerId={AuthenticationService.Instance.PlayerId}");
-        }
 
         private static async Task<byte[]> LoadIfNewerAsync(long localTimestamp)
         {
