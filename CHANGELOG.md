@@ -1,5 +1,27 @@
 # Changelog
 
+## [4.0.0] - 2026-06-25
+
+### Added
+- `CloudSaveUI` component (in-package) — replaces game-project version
+  - Serialized `[SerializeField]` fields for all UI elements — assign references in the Inspector
+  - `CloudSaveUI.Create()` — static factory, creates a fully working UI instance
+  - `BuildDefaultUI()` — builds UI hierarchy programmatically when no prefab references assigned
+  - Context menu "Setup References from Children" in Editor
+- `CloudSaveUI.prefab` — minimal default prefab (procedural fallback builds the full UI)
+- `CloudSaveUIPrefabGenerator` — Editor tool via `Tools > Cloud Save > Generate UI Prefab` to create a fully-assigned prefab at `Assets/Resources/CloudSaveUI.prefab`
+- Dependency on `com.unity.textmeshpro` (3.0.6+) — all text uses `TextMeshProUGUI`
+
+### Changed
+- `CloudSaveUI` migrated from legacy `Text` to `TextMeshProUGUI`
+- Package assembly (`Wagenheimer.CloudSave`) now references `Unity.TextMeshPro`
+- Added `Wagenheimer.CloudSave.Editor` assembly for Editor scripts
+
+### Removed
+- All `using UnityEngine.UI.Text` references — text is 100% TextMeshPro now
+
+---
+
 ## [3.1.0] - 2026-06-25
 
 ### Added

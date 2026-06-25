@@ -44,15 +44,16 @@ Drop-in `byte[]` API — you handle serialization, this package handles the clou
 }
 ```
 
-The package automatically pulls in its UGS dependencies:
+The package automatically pulls in its dependencies:
 - `com.unity.services.core`
 - `com.unity.services.authentication`
 - `com.unity.services.cloudsave`
+- `com.unity.textmeshpro`
 
 ### Pin to a specific version
 
 ```json
-"com.wagenheimer.cloudsave": "https://github.com/wagenheimer/UnityCloudSave.git#3.0.0"
+"com.wagenheimer.cloudsave": "https://github.com/wagenheimer/UnityCloudSave.git#4.0.0"
 ```
 
 ---
@@ -260,6 +261,16 @@ CloudAuth.OnLinked += provider => Debug.Log($"Linked to {provider}");
 | `InitAndSyncAsync(localTs, onCloudNewer)` | Init auth + pulls cloud save if newer. Fire-and-forget safe. |
 | `SaveAsync(bytes, timestamp)` | Uploads save. No-op when offline. Fire-and-forget safe. |
 | `IsAvailable` | True once auth + init are complete. |
+| `OnSyncStarted` | `event Action` — fires when sync begins. |
+| `OnSyncCompleted` | `event Action<CloudSyncResult>` — fires with the result. |
+| `ConflictResolver` | `Func<CloudConflictData, Task<CloudConflictChoice>>` — override conflict UI. |
+
+### `CloudSaveUI`
+
+| Method | Description |
+|---|---|
+| `Create()` | Static factory — builds and returns a full CloudSaveUI hierarchy. |
+| `BuildDefaultUI()` | Builds UI and populates serialized references (used by Editor tools). |
 
 ### `CloudAuth`
 
@@ -287,6 +298,57 @@ CloudAuth.OnLinked += provider => Debug.Log($"Linked to {provider}");
 
 ---
 
+## UI: CloudSaveUI (v4.0.0+)
+
+The package ships a ready-to-use UI component that shows a loading overlay, toast notifications, and a conflict-resolution dialog.
+
+### Quick start (code-only)
+
+```csharp
+// Creates a GameObject with full UI hierarchy built procedurally
+CloudSaveUI.Create();
+```
+
+The UI hooks into `CloudSync.OnSyncStarted`, `CloudSync.OnSyncCompleted`, and
+`CloudSync.ConflictResolver` automatically — no extra wiring needed. All text
+uses **TextMeshProUGUI**.
+
+### Custom prefab
+
+1. Call `CloudSaveUI.Create()` once in the Editor (play mode)
+2. Drag the resulting `CloudSaveUI` hierarchy into your project as a prefab
+3. Customize colors, fonts, layout in the Inspector
+4. Right-click the prefab → **Setup References from Children** to populate fields
+5. Use your prefab instead of the default:
+
+```csharp
+Instantiate(myCloudSaveUIPrefab);
+```
+
+### Generate a full prefab (Editor tool)
+
+**Tools → Cloud Save → Generate UI Prefab** creates a ready-to-use prefab at
+`Assets/Resources/CloudSaveUI.prefab` with all references pre-assigned.
+
+### Serialized fields
+
+| Field | Type | Purpose |
+|---|---|---|
+| `_loadingRoot` | `GameObject` | Loading overlay panel |
+| `_loadingText` | `TextMeshProUGUI` | Animated "Sincronizando..." text |
+| `_toastRoot` | `GameObject` | Toast notification bar |
+| `_toastBg` | `Image` | Toast background color |
+| `_toastText` | `TextMeshProUGUI` | Toast message text |
+| `_conflictRoot` | `GameObject` | Conflict dialog panel |
+| `_conflictTitle` | `TextMeshProUGUI` | "Save mais recente" title |
+| `_localInfoText` | `TextMeshProUGUI` | Local save timestamp |
+| `_cloudInfoText` | `TextMeshProUGUI` | Cloud save timestamp |
+
+If no prefab references are assigned, `BuildUI()` creates the UI hierarchy
+procedurally at startup — zero setup required.
+
+---
+
 ## How Conflict Resolution Works
 
 Every save stores a `long LastSaved` timestamp (UTC ticks). On sync:
@@ -296,6 +358,18 @@ Every save stores a `long LastSaved` timestamp (UTC ticks). On sync:
 3. If local is newer or equal → no change (local save is authoritative)
 
 This is last-write-wins across devices using wall-clock time.
+
+### Custom conflict resolver
+
+```csharp
+CloudSync.ConflictResolver = async data =>
+{
+    // Show your own UI, then return the player's choice
+    return await ShowMyConflictDialog(data.LocalTimestamp, data.CloudTimestamp);
+};
+```
+
+When `ConflictResolver` is `null` (default), cloud always wins.
 
 ---
 

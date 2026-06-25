@@ -1,13 +1,13 @@
 {
-    "name": "Wagenheimer.CloudSave",
-    "rootNamespace": "Wagenheimer.CloudSave",
+    "name": "Wagenheimer.CloudSave.Editor",
+    "rootNamespace": "Wagenheimer.CloudSave.Editor",
     "references": [
-        "Unity.Services.Core",
-        "Unity.Services.Authentication",
-        "Unity.Services.CloudSave",
+        "Wagenheimer.CloudSave",
         "Unity.TextMeshPro"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
