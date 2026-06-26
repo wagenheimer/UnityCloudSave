@@ -53,7 +53,7 @@ The package automatically pulls in its dependencies:
 ### Pin to a specific version
 
 ```json
-"com.wagenheimer.cloudsave": "https://github.com/wagenheimer/UnityCloudSave.git#4.0.0"
+"com.wagenheimer.cloudsave": "https://github.com/wagenheimer/UnityCloudSave.git#4.1.0"
 ```
 
 ---
@@ -261,34 +261,47 @@ CloudAuth.OnLinked += provider => Debug.Log($"Linked to {provider}");
 | `InitAndSyncAsync(localTs, onCloudNewer)` | Init auth + pulls cloud save if newer. Fire-and-forget safe. |
 | `SaveAsync(bytes, timestamp)` | Uploads save. No-op when offline. Fire-and-forget safe. |
 | `IsAvailable` | True once auth + init are complete. |
+| `DataKey` | Current data key prefix used for cloud storage. |
+| `LastResult` | `CloudSyncResult?` — result of the most recent sync, or null before first sync. |
 | `OnSyncStarted` | `event Action` — fires when sync begins. |
 | `OnSyncCompleted` | `event Action<CloudSyncResult>` — fires with the result. |
 | `ConflictResolver` | `Func<CloudConflictData, Task<CloudConflictChoice>>` — override conflict UI. |
 
 ### `CloudSaveUI`
 
-| Method | Description |
+| Member | Description |
 |---|---|
-| `Create()` | Static factory — uses `Resources/CloudSaveUI.prefab` if it exists, otherwise auto-generates it (Editor) or builds procedurally (builds). |
+| `Create()` | Static factory — uses `Resources/CloudSaveUI.prefab` if it exists, otherwise auto-generates it (Editor) or builds procedurally (builds). Idempotent — returns the singleton instance on subsequent calls. |
+| `Instance` | `CloudSaveUI` singleton instance (null before first `Create()`). |
+| `_sortOrder` | Serialized `int` — canvas sorting order (default 200). Configurable in the Inspector. |
+
+The conflict dialog auto-dismisses after **30 seconds** (chooses cloud), preventing a stuck sync if no button is clicked.
 
 ### `SyncStatusUI`
 
-| Method | Description |
+| Member | Description |
 |---|---|
-| `Create()` | Static factory — same pattern as CloudSaveUI. |
+| `Create()` | Static factory — same pattern as CloudSaveUI. Idempotent. |
+| `Instance` | `SyncStatusUI` singleton instance. |
+| `Status` | `SyncStatus` — current status (readonly). Starts as `Offline`. |
 | `SetStatus(SyncStatus)` | Set the current sync status manually. |
 | `SetLastSync(DateTime)` | Set the displayed last-sync timestamp. |
 | `SetVisible(bool)` | Show/hide the indicator. |
+| `_sortOrder` | Serialized `int` — canvas sorting order (default 150). |
 
 ### `CloudAuthUI`
 
-| Method | Description |
+| Member | Description |
 |---|---|
 | `Create()` | Static factory — same pattern as CloudSaveUI. |
 | `Show()` | Show the account linking dialog. |
 | `Hide()` | Hide the dialog. |
 | `OnLinkRequested` | `event Action` — fires when the player clicks the link button. Wire your platform auth here. |
+| `OnDismissed` | `event Action` — fires when the dialog is hidden (close button or overlay click). |
 | `SetLinkResult(bool)` | Call after auth completes to re-enable the button on failure. |
+| `_sortOrder` | Serialized `int` — canvas sorting order (default 250). |
+
+The overlay also responds to clicks — tapping outside the card dismisses the dialog.
 
 ### `CloudSaveLocale`
 
@@ -355,6 +368,7 @@ All three UI prefabs can be regenerated at once via **Tools → Cloud Save → S
 
 | Field | Type | Purpose |
 |---|---|---|
+| `_sortOrder` | `int` | Canvas sorting order (default 200) |
 | `_loadingRoot` | `GameObject` | Loading overlay panel |
 | `_loadingText` | `TextMeshProUGUI` | Animated loading text |
 | `_toastRoot` | `GameObject` | Toast notification bar |
@@ -393,6 +407,20 @@ The indicator automatically listens to `CloudSync.OnSyncStarted` and `CloudSync.
 
 Custom prefab at `Assets/Resources/SyncStatusUI.prefab` — regenerate via **Tools → Cloud Save → Setup UI Prefabs → SyncStatusUI**.
 
+### Serialized fields
+
+| Field | Type | Purpose |
+|---|---|---|
+| `_sortOrder` | `int` | Canvas sorting order (default 150) |
+| `_root` | `GameObject` | Container (anchored bottom-right) |
+| `_icon` | `Image` | Status color indicator |
+| `_statusText` | `TextMeshProUGUI` | Status label (Synced/Syncing/Offline/Error) |
+| `_lastSyncText` | `TextMeshProUGUI` | Last sync timestamp (hidden until first sync) |
+| `_colorSynced` | `Color` | Green |
+| `_colorSyncing` | `Color` | Blue |
+| `_colorOffline` | `Color` | Yellow |
+| `_colorError` | `Color` | Red |
+
 ---
 
 ## UI: CloudAuthUI (v4.1.0+)
@@ -415,11 +443,13 @@ auth.Show();
 
 | Field | Type | Purpose |
 |---|---|---|
-| `_overlay` | `Image` | Semi-transparent background |
+| `_sortOrder` | `int` | Canvas sorting order (default 250) |
+| `_overlay` | `Image` | Semi-transparent background (click to dismiss) |
 | `_cardRoot` | `GameObject` | Center card container |
 | `_titleText` | `TextMeshProUGUI` | "Cloud Login" |
 | `_descriptionText` | `TextMeshProUGUI` | Explanatory text |
 | `_statusText` | `TextMeshProUGUI` | "Account: Anonymous" / "Account: {provider}" |
+| `_providerIcon` | `Image` | Platform logo placeholder |
 | `_linkButton` | `Button` | Sign in button |
 | `_linkButtonText` | `TextMeshProUGUI` | Button label |
 | `_closeButton` | `Button` | Close / "Not now" |

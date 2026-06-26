@@ -198,13 +198,13 @@ namespace Wagenheimer.CloudSave
                 new Vector2(0.08f, 0.25f), new Vector2(0.92f, 0.75f), Vector2.zero, Vector2.zero);
 
             _titleText = MakeText(_cardRoot, "Title", CloudSaveLocale.AuthTitle(),
-                Color.white, 34, TextAlignmentOptions.TopCenter,
+                Color.white, 34, TextAlignmentOptions.Top,
                 new Vector2(0f, 0.80f), new Vector2(1f, 1f),
                 new Vector2(16, 0), new Vector2(-16, -8));
             _titleText.fontStyle = FontStyles.Bold;
 
             _descriptionText = MakeText(_cardRoot, "Description", CloudSaveLocale.AuthDescription(),
-                new Color(0.7f, 0.7f, 0.7f), 24, TextAlignmentOptions.TopCenter,
+                new Color(0.7f, 0.7f, 0.7f), 24, TextAlignmentOptions.Top,
                 new Vector2(0f, 0.62f), new Vector2(1f, 0.78f),
                 new Vector2(16, 0), new Vector2(-16, 0));
 
@@ -212,7 +212,7 @@ namespace Wagenheimer.CloudSave
                 new Vector2(0.42f, 0.48f), new Vector2(0.58f, 0.56f));
 
             _statusText = MakeText(_cardRoot, "StatusText", CloudSaveLocale.AuthStatusAnonymous(),
-                Color.white, 26, TextAlignmentOptions.TopCenter,
+                Color.white, 26, TextAlignmentOptions.Top,
                 new Vector2(0f, 0.36f), new Vector2(1f, 0.48f),
                 Vector2.zero, Vector2.zero);
 

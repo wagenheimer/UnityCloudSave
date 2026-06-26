@@ -1,5 +1,27 @@
 # Changelog
 
+## [4.1.1] - 2026-06-25
+
+### Fixed
+- `TextAlignmentOptions.TopCenter` → `TextAlignmentOptions.Top` (compilation error no TMP)
+
+### Added
+- `CloudSaveUI.Instance` — singleton property; `Create()` é idempotente
+- `SyncStatusUI.Instance` e `SyncStatusUI.Status` — singleton + status readonly
+- `_sortOrder` serializado nas 3 UIs (CloudSaveUI=200, SyncStatusUI=150, CloudAuthUI=250)
+- Conflict dialog com timeout de 30s (fallback para UseCloud)
+- `CloudAuthUI.OnDismissed` — evento ao fechar o dialog
+- Overlay click-to-close no CloudAuthUI
+- `CloudSync.DataKey` e `CloudSync.LastResult` públicos
+
+### Changed
+- `SyncStatusUI` agora inicia como `Offline` (antes `Synced`)
+- `SyncStatusUI` e `CloudSaveUI` usam `DontDestroyOnLoad` + singleton guard
+- Editor generator cria diretório `Assets/Resources/` automaticamente se não existir
+
+### Removed
+- Duplicação de `BuildDefaultUI()` e `SetupReferencesFromChildren()` no CloudAuthUI
+
 ## [4.1.0] - 2026-06-25
 
 ### Added

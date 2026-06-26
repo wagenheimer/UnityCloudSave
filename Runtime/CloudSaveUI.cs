@@ -362,13 +362,13 @@ namespace Wagenheimer.CloudSave
                 new Vector2(0.05f, 0.28f), new Vector2(0.95f, 0.72f), Vector2.zero, Vector2.zero);
 
             _conflictTitle = MakeText(card, "Title", CloudSaveLocale.ConflictTitleCloud(),
-                ColText, 34, TextAlignmentOptions.TopCenter,
+                ColText, 34, TextAlignmentOptions.Top,
                 new Vector2(0f, 0.75f), new Vector2(1f, 1f),
                 new Vector2(16, 0), new Vector2(-16, -8));
             _conflictTitle.fontStyle = FontStyles.Bold;
 
             MakeText(card, "Subtitle", CloudSaveLocale.ConflictChoose(),
-                ColTextDim, 24, TextAlignmentOptions.TopCenter,
+                ColTextDim, 24, TextAlignmentOptions.Top,
                 new Vector2(0f, 0.62f), new Vector2(1f, 0.76f),
                 new Vector2(16, 0), new Vector2(-16, 0));
 
