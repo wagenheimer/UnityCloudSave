@@ -229,8 +229,6 @@ namespace Wagenheimer.CloudSave
                 return CloudLinkResult.Fail(ex.Message);
             }
         }
-    }
-}
 
 #if UNITY_EDITOR
         [System.Diagnostics.Conditional("UNITY_EDITOR")]

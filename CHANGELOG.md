@@ -22,6 +22,11 @@
 ### Removed
 - Duplicação de `BuildDefaultUI()` e `SetupReferencesFromChildren()` no CloudAuthUI
 
+## [4.1.2] - 2026-06-26
+
+### Fixed
+- `#if UNITY_EDITOR` test helpers posicionados fora da classe causando CS8803/CS0106/CS1022
+
 ### Added
 - `CloudSaveTester` — Editor window para testar todas as UIs e eventos sem UGS
   - Menu: **Tools → Cloud Save → Test Window**

@@ -167,8 +167,6 @@ namespace Wagenheimer.CloudSave
                 return (null, 0);
             }
         }
-    }
-}
 
 #if UNITY_EDITOR
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
