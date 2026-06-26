@@ -14,14 +14,22 @@ namespace Wagenheimer.CloudSave
         [SerializeField] TextMeshProUGUI _statusText;
         [SerializeField] TextMeshProUGUI _lastSyncText;
 
+        [Header("Layout")]
+        [SerializeField] int _sortOrder = 150;
+
         [Header("Colors")]
         [SerializeField] Color _colorSynced   = new Color(0.20f, 0.80f, 0.20f);
         [SerializeField] Color _colorSyncing  = new Color(0.20f, 0.50f, 1.00f);
         [SerializeField] Color _colorOffline  = new Color(1.00f, 0.80f, 0.00f);
         [SerializeField] Color _colorError    = new Color(1.00f, 0.25f, 0.25f);
 
+        static SyncStatusUI _instance;
+        SyncStatus _status = SyncStatus.Offline;
         DateTime _lastSyncTime;
         bool _hasLastSync;
+
+        public static SyncStatusUI Instance => _instance;
+        public SyncStatus Status => _status;
 
         // ── Public API ─────────────────────────────────────────────────────
 
@@ -64,8 +72,28 @@ namespace Wagenheimer.CloudSave
 
         void Awake()
         {
+            if (_instance != null)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            _instance = this;
+
             if (_root == null)
                 BuildUI();
+            else
+                UpdateCanvasSortOrder();
+
+            DontDestroyOnLoad(gameObject);
+
+            SetStatus(SyncStatus.Offline);
+        }
+
+        void OnDestroy()
+        {
+            if (_instance == this)
+                _instance = null;
         }
 
         void OnEnable()
@@ -102,6 +130,13 @@ namespace Wagenheimer.CloudSave
 
         // ── Helpers ────────────────────────────────────────────────────────
 
+        void UpdateCanvasSortOrder()
+        {
+            var canvas = GetComponentInChildren<Canvas>();
+            if (canvas != null)
+                canvas.sortingOrder = _sortOrder;
+        }
+
         void UpdateLastSync()
         {
             _lastSyncText.text = CloudSaveLocale.SyncLast(_lastSyncTime.ToString("HH:mm"));
@@ -112,6 +147,9 @@ namespace Wagenheimer.CloudSave
 
         public static SyncStatusUI Create()
         {
+            if (_instance != null)
+                return _instance;
+
             var prefab = Resources.Load<GameObject>("SyncStatusUI");
             if (prefab != null)
             {
@@ -155,7 +193,7 @@ namespace Wagenheimer.CloudSave
 
         void BuildUI()
         {
-            var canvas = MakeCanvas("SyncStatusCanvas", 150);
+            var canvas = MakeCanvas("SyncStatusCanvas", _sortOrder);
             _root = MakePanel(canvas.gameObject, "Root",
                 new Color(0.05f, 0.05f, 0.05f, 0.70f),
                 new Vector2(0.80f, 0.02f), new Vector2(0.98f, 0.07f),
@@ -166,8 +204,8 @@ namespace Wagenheimer.CloudSave
 
             _icon = MakeIcon(container);
 
-            _statusText = MakeText(container, "StatusText", CloudSaveLocale.SyncStatus(SyncStatus.Synced),
-                _colorSynced, 22, TextAlignmentOptions.Left,
+            _statusText = MakeText(container, "StatusText", CloudSaveLocale.SyncStatus(SyncStatus.Offline),
+                _colorOffline, 22, TextAlignmentOptions.Left,
                 new Vector2(0.08f, 0f), new Vector2(0.65f, 1f),
                 Vector2.zero, Vector2.zero);
 

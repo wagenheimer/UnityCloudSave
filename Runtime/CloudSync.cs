@@ -33,6 +33,12 @@ namespace Wagenheimer.CloudSave
         /// <summary>True once UGS init + anonymous sign-in are complete.</summary>
         public static bool IsAvailable => CloudAuth.IsReady;
 
+        /// <summary>The data key prefix used for cloud storage.</summary>
+        public static string DataKey => _dataKey;
+
+        /// <summary>The result of the most recent sync operation, or null before the first sync.</summary>
+        public static CloudSyncResult? LastResult { get; private set; }
+
         /// <summary>Fires when a sync operation begins (before network calls).</summary>
         public static event Action OnSyncStarted;
 
@@ -112,6 +118,7 @@ namespace Wagenheimer.CloudSave
             }
             finally
             {
+                LastResult = result;
                 OnSyncCompleted?.Invoke(result);
             }
         }

@@ -61,6 +61,18 @@ namespace Wagenheimer.CloudSave.Editor
 
         static void SavePrefab(GameObject go, string path)
         {
+            var dir = System.IO.Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir) && !AssetDatabase.IsValidFolder(dir))
+            {
+                var parent = System.IO.Path.GetDirectoryName(dir);
+                var name   = System.IO.Path.GetFileName(dir);
+                if (!string.IsNullOrEmpty(parent) && AssetDatabase.IsValidFolder(parent))
+                    AssetDatabase.CreateFolder(parent, name);
+                else
+                    System.IO.Directory.CreateDirectory(dir);
+                AssetDatabase.Refresh();
+            }
+
             var saved = PrefabUtility.SaveAsPrefabAsset(go, path);
             Object.DestroyImmediate(go);
 

@@ -25,9 +25,14 @@ namespace Wagenheimer.CloudSave
         [SerializeField] private TextMeshProUGUI _localInfoText;
         [SerializeField] private TextMeshProUGUI _cloudInfoText;
 
+        [Header("Layout")]
+        [SerializeField] private int _sortOrder = 200;
+
+        static CloudSaveUI _instance;
         float _loadingDots;
         Coroutine _toastRoutine;
         TaskCompletionSource<CloudConflictChoice> _conflictTcs;
+        CancellationTokenSource _conflictCts;
 
         static readonly Color ColOverlay   = new Color(0f,    0f,    0f,    0.72f);
         static readonly Color ColPanel     = new Color(0.12f, 0.12f, 0.14f, 0.97f);
@@ -40,10 +45,22 @@ namespace Wagenheimer.CloudSave
         static readonly Color ColLocalCard = new Color(0.18f, 0.18f, 0.22f, 1f);
         static readonly Color ColCloudCard = new Color(0.10f, 0.22f, 0.38f, 1f);
 
+        public static CloudSaveUI Instance => _instance;
+
         void Awake()
         {
+            if (_instance != null)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            _instance = this;
+
             if (_loadingRoot == null)
                 BuildUI();
+            else
+                UpdateCanvasSortOrder();
 
             DontDestroyOnLoad(gameObject);
 
@@ -56,12 +73,18 @@ namespace Wagenheimer.CloudSave
 
         void OnDestroy()
         {
+            if (_instance != this) return;
+
+            _instance = null;
             CloudSync.OnSyncStarted     -= HandleSyncStarted;
             CloudSync.OnSyncCompleted   -= HandleSyncCompleted;
             CloudAuth.OnLinked          -= HandleLinked;
             CloudAuth.OnAccountSwitched -= HandleAccountSwitched;
             if (CloudSync.ConflictResolver == (Func<CloudConflictData, Task<CloudConflictChoice>>)ShowConflictDialogAsync)
                 CloudSync.ConflictResolver = null;
+
+            _conflictCts?.Cancel();
+            _conflictCts?.Dispose();
         }
 
         void Update()
@@ -151,13 +174,25 @@ namespace Wagenheimer.CloudSave
 
         async Task<CloudConflictChoice> ShowConflictDialogAsync(CloudConflictData data)
         {
+            _conflictCts?.Cancel();
+            _conflictCts?.Dispose();
+            _conflictCts = new CancellationTokenSource();
             _conflictTcs = new TaskCompletionSource<CloudConflictChoice>();
+
             _conflictTitle.text = data.Reason == CloudConflictReason.AccountSwitched
                 ? CloudSaveLocale.ConflictTitleAccount()
                 : CloudSaveLocale.ConflictTitleCloud();
             _localInfoText.text = FormatTimestamp(CloudSaveLocale.ConflictLocal(),   data.LocalTimestamp);
             _cloudInfoText.text = FormatTimestamp(CloudSaveLocale.ConflictCloud(), data.CloudTimestamp);
             _conflictRoot.SetActive(true);
+
+            var timeout = Task.Delay(30000, _conflictCts.Token);
+            var choice  = _conflictTcs.Task;
+
+            var done = await Task.WhenAny(choice, timeout);
+            if (done != choice)
+                ResolveConflict(CloudConflictChoice.UseCloud);
+
             return await _conflictTcs.Task;
         }
 
@@ -165,6 +200,13 @@ namespace Wagenheimer.CloudSave
         {
             _conflictRoot.SetActive(false);
             _conflictTcs?.TrySetResult(choice);
+        }
+
+        void UpdateCanvasSortOrder()
+        {
+            var canvas = GetComponentInChildren<Canvas>();
+            if (canvas != null)
+                canvas.sortingOrder = _sortOrder;
         }
 
         static string FormatTimestamp(string label, long ticks)
@@ -184,6 +226,9 @@ namespace Wagenheimer.CloudSave
         /// </summary>
         public static CloudSaveUI Create()
         {
+            if (_instance != null)
+                return _instance;
+
             var prefab = Resources.Load<GameObject>("CloudSaveUI");
             if (prefab != null)
             {
@@ -206,6 +251,7 @@ namespace Wagenheimer.CloudSave
             var go = new GameObject("CloudSaveUI");
             var ui = go.AddComponent<CloudSaveUI>();
             ui.BuildUI();
+            ui._sortOrder = ui._sortOrder;
 
             var dir = "Assets/Resources";
             if (!UnityEditor.AssetDatabase.IsValidFolder(dir))
@@ -221,9 +267,7 @@ namespace Wagenheimer.CloudSave
             instance.name = "CloudSaveUI";
             return instance.GetComponent<CloudSaveUI>();
         }
-#endif
 
-#if UNITY_EDITOR
         [ContextMenu("Setup References from Children")]
         void SetupReferencesFromChildren()
         {
@@ -257,7 +301,7 @@ namespace Wagenheimer.CloudSave
 
         void BuildUI()
         {
-            var canvas = MakeCanvas("CloudSaveCanvas", 200);
+            var canvas = MakeCanvas("CloudSaveCanvas", _sortOrder);
             BuildLoadingOverlay(canvas);
             BuildToast(canvas);
             BuildConflictDialog(canvas);

@@ -1,3 +1,4 @@
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -19,6 +20,9 @@ namespace Wagenheimer.CloudSave
         [SerializeField] Button _closeButton;
         [SerializeField] TextMeshProUGUI _closeButtonText;
 
+        [Header("Layout")]
+        [SerializeField] int _sortOrder = 250;
+
         [Header("Colors")]
         [SerializeField] Color _overlayColor = new Color(0f, 0f, 0f, 0.70f);
 
@@ -28,6 +32,9 @@ namespace Wagenheimer.CloudSave
         /// The button is disabled until you call <see cref="SetLinkResult"/>.
         /// </summary>
         public event Action OnLinkRequested;
+
+        /// <summary>Fires when the dialog is hidden (close button or overlay click).</summary>
+        public event Action OnDismissed;
 
         enum AuthState { Anonymous, Linked }
         AuthState _state;
@@ -70,6 +77,7 @@ namespace Wagenheimer.CloudSave
         public void Hide()
         {
             gameObject.SetActive(false);
+            OnDismissed?.Invoke();
         }
 
         // ── Lifecycle ──────────────────────────────────────────────────────
@@ -176,9 +184,15 @@ namespace Wagenheimer.CloudSave
 
         void BuildUI()
         {
-            var canvas = MakeCanvas("CloudAuthCanvas", 250);
+            var canvas = MakeCanvas("CloudAuthCanvas", _sortOrder);
+
             _overlay = MakePanel(canvas.gameObject, "Overlay", _overlayColor,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).GetComponent<Image>();
+
+            var overlayBtn = _overlay.gameObject.AddComponent<Button>();
+            overlayBtn.targetGraphic = _overlay;
+            overlayBtn.onClick.AddListener(Hide);
+            overlayBtn.transition = Selectable.Transition.None;
 
             _cardRoot = MakePanel(canvas.gameObject, "Card", new Color(0.12f, 0.12f, 0.14f),
                 new Vector2(0.08f, 0.25f), new Vector2(0.92f, 0.75f), Vector2.zero, Vector2.zero);
