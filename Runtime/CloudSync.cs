@@ -169,3 +169,13 @@ namespace Wagenheimer.CloudSave
         }
     }
 }
+
+#if UNITY_EDITOR
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        internal static void TestFireSyncStarted() => OnSyncStarted?.Invoke();
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        internal static void TestFireSyncCompleted(CloudSyncResult result) => OnSyncCompleted?.Invoke(result);
+#endif
+    }
+}

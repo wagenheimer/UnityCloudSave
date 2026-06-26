@@ -527,7 +527,41 @@ When `ConflictResolver` is `null` (default), cloud always wins.
 
 ---
 
-## Limits
+---
+
+## Testing in the Editor (v4.1.1+)
+
+The package ships a **Test Window** that lets you simulate sync operations, fire events, and visualise all UI components without needing actual Unity Gaming Services credentials or a device build.
+
+### Open the Test Window
+
+**Tools → Cloud Save → Test Window**
+
+### What you can test
+
+| Section | Actions |
+|---|---|
+| **Scene Setup** | Create all UIs at once / Destroy all UIs |
+| **CloudSaveUI** | Show/hide loading overlay, trigger toast notifications (Synced / LocalNewer / Offline / Error), show the conflict resolution dialog |
+| **SyncStatusUI** | Set status to Synced / Syncing / Offline / Error manually |
+| **CloudAuthUI** | Create and show the account-linking modal, hide it |
+| **Event Simulation** | Fire `CloudSync.OnSyncStarted` and `OnSyncCompleted` (any result), fire `CloudAuth.OnLinked` and `OnAccountSwitched` |
+| **State panel** | Read-only view of all package state: singleton instances, sync status, auth readiness, last result |
+
+### Typical test flow
+
+```text
+1. Click [Create All UIs]     → CloudSaveUI + SyncStatusUI appear on screen
+2. Click [Fire OnSyncStarted]  → loading overlay + SyncStatusUI(Syncing)
+3. Click [Completed: CloudApplied] → toast + SyncStatusUI(Synced)
+4. Click [Fire OnLinked]      → toast "Account linked"
+5. Click [Show Conflict Dialog] → conflict UI with mock timestamps
+6. Click [Keep Local] or [Use Cloud] → dialog closes
+```
+
+The test window calls the same internal methods and events that the runtime uses, so the behaviour is identical to a real sync flow. No UGS project or internet connection required.
+
+---
 
 | Limit | Value |
 |---|---|

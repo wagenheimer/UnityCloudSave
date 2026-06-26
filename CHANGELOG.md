@@ -22,6 +22,14 @@
 ### Removed
 - Duplicação de `BuildDefaultUI()` e `SetupReferencesFromChildren()` no CloudAuthUI
 
+### Added
+- `CloudSaveTester` — Editor window para testar todas as UIs e eventos sem UGS
+  - Menu: **Tools → Cloud Save → Test Window**
+  - Simula sync, toast, conflito, auth link, account switch
+  - Painel de estado com todos os valores atuais
+- `CloudSync.TestFireSyncStarted()` / `TestFireSyncCompleted()` — helpers para teste de eventos
+- `CloudAuth.TestFireLinked()` / `TestFireAccountSwitched()` — helpers para teste de eventos
+
 ## [4.1.0] - 2026-06-25
 
 ### Added

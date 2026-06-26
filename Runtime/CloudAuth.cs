@@ -231,3 +231,13 @@ namespace Wagenheimer.CloudSave
         }
     }
 }
+
+#if UNITY_EDITOR
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        internal static void TestFireLinked(CloudAuthProvider provider) => OnLinked?.Invoke(provider);
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        internal static void TestFireAccountSwitched(CloudAuthProvider provider) => OnAccountSwitched?.Invoke(provider);
+#endif
+    }
+}
