@@ -71,7 +71,7 @@ namespace Wagenheimer.CloudSave
         public static string ConflictNone()          => Get("cloudsave.conflict_none");
         public static string BtnKeepLocal()          => Get("cloudsave.btn_keep_local");
         public static string BtnUseCloud()           => Get("cloudsave.btn_use_cloud");
-        public static string SyncStatus(SyncStatus s) => s switch
+        public static string SyncStatusText(SyncStatus s) => s switch
         {
             SyncStatus.Synced  => Get("cloudsave.sync_status_synced"),
             SyncStatus.Syncing => Get("cloudsave.sync_status_syncing"),

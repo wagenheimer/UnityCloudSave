@@ -260,7 +260,7 @@ namespace Wagenheimer.CloudSave
 
             var path = dir + "/CloudSaveUI.prefab";
             UnityEditor.PrefabUtility.SaveAsPrefabAsset(go, path);
-            Object.DestroyImmediate(go);
+            UnityEngine.Object.DestroyImmediate(go);
             UnityEditor.AssetDatabase.Refresh();
 
             var saved = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);

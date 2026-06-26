@@ -35,7 +35,7 @@ namespace Wagenheimer.CloudSave
 
         public void SetStatus(SyncStatus status)
         {
-            _statusText.text = CloudSaveLocale.SyncStatus(status);
+            _statusText.text = CloudSaveLocale.SyncStatusText(status);
             _icon.color = status switch
             {
                 SyncStatus.Synced  => _colorSynced,
@@ -204,7 +204,7 @@ namespace Wagenheimer.CloudSave
 
             _icon = MakeIcon(container);
 
-            _statusText = MakeText(container, "StatusText", CloudSaveLocale.SyncStatus(SyncStatus.Offline),
+            _statusText = MakeText(container, "StatusText", CloudSaveLocale.SyncStatusText(SyncStatus.Offline),
                 _colorOffline, 22, TextAlignmentOptions.Left,
                 new Vector2(0.08f, 0f), new Vector2(0.65f, 1f),
                 Vector2.zero, Vector2.zero);
