@@ -1,6 +1,6 @@
 {
   "name": "com.wagenheimer.cloudsave",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "displayName": "Cloud Save",
   "description": "Cross-platform cloud save for Unity games using Unity Cloud Save (UGS). Anonymous auth by default, upgradeable to Google Play Games (Android) or Apple Game Center / Sign in with Apple (iOS). Timestamp-based conflict resolution, offline fallback. Simple byte[] API — bring your own serializer.",
   "unity": "2021.3",

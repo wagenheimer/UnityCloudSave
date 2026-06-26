@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.1.0] - 2026-06-25
+
+### Added
+- `CloudSaveLocale` — localization delegate + string table with English fallback
+  - `CloudSaveLocale.Translate` — assign to integrate I2 Localization or any other system
+  - Convenience accessors for all string keys (e.g. `CloudSaveLocale.Synced()`)
+  - All CloudSaveUI strings now use `CloudSaveLocale` instead of hardcoded text
+- `SyncStatusUI` — persistent sync status indicator
+  - 4 states: Synced (green), Syncing (blue), Offline (yellow), Error (red)
+  - Auto-listeners on `CloudSync.OnSyncStarted` / `OnSyncCompleted`
+  - Last-sync time tooltip
+  - Factory: `SyncStatusUI.Create()`
+- `CloudAuthUI` — modal dialog for linking anonymous account to a platform provider
+  - Shows correct button for current platform (`#if UNITY_ANDROID` / `#if UNITY_IOS`)
+  - Factory: `CloudAuthUI.Create()`, call `.Show()` to display
+- Editor generator now supports all 3 UIs via `Tools > Cloud Save > Setup UI Prefabs` menu
+
 ## [4.0.0] - 2026-06-25
 
 ### Added

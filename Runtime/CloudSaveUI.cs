@@ -42,7 +42,7 @@ namespace Wagenheimer.CloudSave
 
         void Awake()
         {
-            if (_loadingRoot == null || _toastRoot == null || _conflictRoot == null)
+            if (_loadingRoot == null)
                 BuildUI();
 
             DontDestroyOnLoad(gameObject);
@@ -69,7 +69,7 @@ namespace Wagenheimer.CloudSave
             if (!_loadingRoot.activeSelf) return;
             _loadingDots += Time.unscaledDeltaTime * 2f;
             int dots = (int)(_loadingDots % 4);
-            _loadingText.text = "Sincronizando save" + new string('.', dots);
+            _loadingText.text = CloudSaveLocale.Loading() + new string('.', dots);
         }
 
         void HandleSyncStarted() => SetLoading(true);
@@ -80,21 +80,21 @@ namespace Wagenheimer.CloudSave
             switch (result)
             {
                 case CloudSyncResult.CloudApplied:
-                    ShowToast("Save da nuvem aplicado", ColSuccess);
+                    ShowToast(CloudSaveLocale.Synced(), ColSuccess);
                     break;
                 case CloudSyncResult.LocalNewer:
-                    ShowToast("Save local est\u00e1 atualizado", ColAccent);
+                    ShowToast(CloudSaveLocale.LocalNewer(), ColAccent);
                     break;
                 case CloudSyncResult.UserChoseLocal:
-                    ShowToast("Save local mantido", ColAccent);
+                    ShowToast(CloudSaveLocale.LocalKept(), ColAccent);
                     break;
                 case CloudSyncResult.NoCloudSave:
                     break;
                 case CloudSyncResult.Offline:
-                    ShowToast("Sem conex\u00e3o \u2014 save local", ColWarning);
+                    ShowToast(CloudSaveLocale.Offline(), ColWarning);
                     break;
                 case CloudSyncResult.Error:
-                    ShowToast("Falha ao sincronizar save", ColError);
+                    ShowToast(CloudSaveLocale.Error(), ColError);
                     break;
             }
         }
@@ -105,11 +105,11 @@ namespace Wagenheimer.CloudSave
                      : provider == CloudAuthProvider.Apple            ? "Apple"
                      : provider == CloudAuthProvider.AppleGameCenter  ? "Game Center"
                      : "conta";
-            ShowToast($"Conta vinculada: {name}", ColAccent);
+            ShowToast(CloudSaveLocale.AccountLinked(name), ColAccent);
         }
 
         void HandleAccountSwitched(CloudAuthProvider provider) =>
-            ShowToast("Conta recuperada \u2014 sincronizando...", ColWarning);
+            ShowToast(CloudSaveLocale.AccountSwitched(), ColWarning);
 
         void SetLoading(bool visible)
         {
@@ -153,10 +153,10 @@ namespace Wagenheimer.CloudSave
         {
             _conflictTcs = new TaskCompletionSource<CloudConflictChoice>();
             _conflictTitle.text = data.Reason == CloudConflictReason.AccountSwitched
-                ? "Save de outra conta encontrado"
-                : "Save na nuvem \u00e9 mais recente";
-            _localInfoText.text = FormatTimestamp("\U0001f4be  Save Local",   data.LocalTimestamp);
-            _cloudInfoText.text = FormatTimestamp("\u2601  Save na Nuvem", data.CloudTimestamp);
+                ? CloudSaveLocale.ConflictTitleAccount()
+                : CloudSaveLocale.ConflictTitleCloud();
+            _localInfoText.text = FormatTimestamp(CloudSaveLocale.ConflictLocal(),   data.LocalTimestamp);
+            _cloudInfoText.text = FormatTimestamp(CloudSaveLocale.ConflictCloud(), data.CloudTimestamp);
             _conflictRoot.SetActive(true);
             return await _conflictTcs.Task;
         }
@@ -169,7 +169,7 @@ namespace Wagenheimer.CloudSave
 
         static string FormatTimestamp(string label, long ticks)
         {
-            if (ticks <= 0) return $"{label}\nNenhum save";
+            if (ticks <= 0) return $"{label}\n{CloudSaveLocale.ConflictNone()}";
             var dt = new DateTime(ticks, DateTimeKind.Utc).ToLocalTime();
             return $"{label}\n{dt:dd/MM/yyyy  HH:mm}";
         }
@@ -177,29 +177,51 @@ namespace Wagenheimer.CloudSave
         // ── Static factory ─────────────────────────────────────────────────
 
         /// <summary>
-        /// Creates a new CloudSaveUI GameObject with the full UI hierarchy
-        /// built procedurally. Use this when you don't need a custom prefab.
+        /// Creates a CloudSaveUI instance. Uses a custom prefab from
+        /// Resources/CloudSaveUI.prefab if it exists; otherwise builds
+        /// the UI procedurally. In the Editor, the prefab is auto-generated
+        /// on first call so you can customize it.
         /// </summary>
         public static CloudSaveUI Create()
+        {
+            var prefab = Resources.Load<GameObject>("CloudSaveUI");
+            if (prefab != null)
+            {
+                var go = Instantiate(prefab);
+                go.name = "CloudSaveUI";
+                return go.GetComponent<CloudSaveUI>();
+            }
+
+#if UNITY_EDITOR
+            return CreateAndSavePrefab();
+#else
+            var go = new GameObject("CloudSaveUI");
+            return go.AddComponent<CloudSaveUI>();
+#endif
+        }
+
+#if UNITY_EDITOR
+        static CloudSaveUI CreateAndSavePrefab()
         {
             var go = new GameObject("CloudSaveUI");
             var ui = go.AddComponent<CloudSaveUI>();
             ui.BuildUI();
-            return ui;
-        }
 
-        /// <summary>
-        /// Same as <see cref="Create"/> but also searches children to populate
-        /// serialized references. Useful when building a prefab in the Editor
-        /// via <see cref="Editor.CloudSaveUIPrefabGenerator"/>.
-        /// </summary>
-        internal void BuildDefaultUI()
-        {
-            BuildUI();
-#if UNITY_EDITOR
-            SetupReferencesFromChildren();
-#endif
+            var dir = "Assets/Resources";
+            if (!UnityEditor.AssetDatabase.IsValidFolder(dir))
+                UnityEditor.AssetDatabase.CreateFolder("Assets", "Resources");
+
+            var path = dir + "/CloudSaveUI.prefab";
+            UnityEditor.PrefabUtility.SaveAsPrefabAsset(go, path);
+            Object.DestroyImmediate(go);
+            UnityEditor.AssetDatabase.Refresh();
+
+            var saved = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            var instance = Instantiate(saved);
+            instance.name = "CloudSaveUI";
+            return instance.GetComponent<CloudSaveUI>();
         }
+#endif
 
 #if UNITY_EDITOR
         [ContextMenu("Setup References from Children")]
@@ -239,7 +261,6 @@ namespace Wagenheimer.CloudSave
         {
             var go = new GameObject(goName);
             go.transform.SetParent(transform, false);
-            DontDestroyOnLoad(go);
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = sortOrder;
@@ -257,7 +278,7 @@ namespace Wagenheimer.CloudSave
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var inner = MakePanel(_loadingRoot, "LoadingInner", ColPanel,
                 new Vector2(0.2f, 0.44f), new Vector2(0.8f, 0.58f), Vector2.zero, Vector2.zero);
-            _loadingText = MakeText(inner, "LoadingText", "Sincronizando save",
+            _loadingText = MakeText(inner, "LoadingText", CloudSaveLocale.Loading(),
                 ColText, 28, TextAlignmentOptions.Center,
                 Vector2.zero, Vector2.one, new Vector2(-20, -20), new Vector2(20, 20));
             _loadingRoot.SetActive(false);
@@ -290,13 +311,13 @@ namespace Wagenheimer.CloudSave
             var card = MakePanel(_conflictRoot, "ConflictCard", ColPanel,
                 new Vector2(0.05f, 0.28f), new Vector2(0.95f, 0.72f), Vector2.zero, Vector2.zero);
 
-            _conflictTitle = MakeText(card, "Title", "Save na nuvem \u00e9 mais recente",
+            _conflictTitle = MakeText(card, "Title", CloudSaveLocale.ConflictTitleCloud(),
                 ColText, 34, TextAlignmentOptions.TopCenter,
                 new Vector2(0f, 0.75f), new Vector2(1f, 1f),
                 new Vector2(16, 0), new Vector2(-16, -8));
             _conflictTitle.fontStyle = FontStyles.Bold;
 
-            MakeText(card, "Subtitle", "Escolha qual save deseja usar:",
+            MakeText(card, "Subtitle", CloudSaveLocale.ConflictChoose(),
                 ColTextDim, 24, TextAlignmentOptions.TopCenter,
                 new Vector2(0f, 0.62f), new Vector2(1f, 0.76f),
                 new Vector2(16, 0), new Vector2(-16, 0));
@@ -313,11 +334,11 @@ namespace Wagenheimer.CloudSave
                 ColText, 24, TextAlignmentOptions.Center,
                 Vector2.zero, Vector2.one, new Vector2(8, 8), new Vector2(-8, -8));
 
-            MakeButton(card, "BtnLocal", "Manter Local", ColLocalCard, ColTextDim,
+            MakeButton(card, "BtnLocal", CloudSaveLocale.BtnKeepLocal(), ColLocalCard, ColTextDim,
                 new Vector2(0.03f, 0.05f), new Vector2(0.48f, 0.26f),
                 () => ResolveConflict(CloudConflictChoice.UseLocal));
 
-            MakeButton(card, "BtnCloud", "Usar Nuvem", ColAccent, Color.white,
+            MakeButton(card, "BtnCloud", CloudSaveLocale.BtnUseCloud(), ColAccent, Color.white,
                 new Vector2(0.52f, 0.05f), new Vector2(0.97f, 0.26f),
                 () => ResolveConflict(CloudConflictChoice.UseCloud));
 

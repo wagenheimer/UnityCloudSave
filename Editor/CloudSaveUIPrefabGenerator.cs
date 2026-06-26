@@ -1,44 +1,60 @@
-using System.IO;
 using UnityEditor;
 using UnityEngine;
 using Wagenheimer.CloudSave;
 
 namespace Wagenheimer.CloudSave.Editor
 {
-    /// <summary>
-    /// Generates a full CloudSaveUI prefab with all child GameObjects and
-    /// serialized references pre-assigned.
-    ///
-    /// Run via: Tools &gt; Cloud Save &gt; Generate UI Prefab
-    /// </summary>
     public static class CloudSaveUIPrefabGenerator
     {
-        const string PrefabPath = "Assets/Resources/CloudSaveUI.prefab";
+        const string CloudSaveUIPath = "Assets/Resources/CloudSaveUI.prefab";
+        const string SyncStatusUIPath = "Assets/Resources/SyncStatusUI.prefab";
+        const string CloudAuthUIPath = "Assets/Resources/CloudAuthUI.prefab";
 
-        [MenuItem("Tools/Cloud Save/Generate UI Prefab", priority = 100)]
-        static void Generate()
+        [MenuItem("Tools/Cloud Save/Setup UI Prefabs/CloudSaveUI", priority = 100)]
+        static void GenerateCloudSaveUI()
         {
-            var go = new GameObject("CloudSaveUI");
-            var ui = go.AddComponent<CloudSaveUI>();
-            ui.BuildDefaultUI();
+            DeletePrefab(CloudSaveUIPath);
+            var ui = CloudSaveUI.Create();
+            if (ui != null) Ping(ui.gameObject, CloudSaveUIPath);
+        }
 
-            var dir = Path.GetDirectoryName(PrefabPath);
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
+        [MenuItem("Tools/Cloud Save/Setup UI Prefabs/SyncStatusUI", priority = 101)]
+        static void GenerateSyncStatusUI()
+        {
+            DeletePrefab(SyncStatusUIPath);
+            var ui = SyncStatusUI.Create();
+            if (ui != null) Ping(ui.gameObject, SyncStatusUIPath);
+        }
 
-            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+        [MenuItem("Tools/Cloud Save/Setup UI Prefabs/CloudAuthUI", priority = 102)]
+        static void GenerateCloudAuthUI()
+        {
+            DeletePrefab(CloudAuthUIPath);
+            var ui = CloudAuthUI.Create();
+            if (ui != null) Ping(ui.gameObject, CloudAuthUIPath);
+        }
+
+        [MenuItem("Tools/Cloud Save/Setup UI Prefabs/All", priority = 90)]
+        static void GenerateAll()
+        {
+            GenerateCloudSaveUI();
+            GenerateSyncStatusUI();
+            GenerateCloudAuthUI();
+            Debug.Log("[CloudSave] All UI prefabs generated");
+        }
+
+        static void DeletePrefab(string path)
+        {
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (existing != null)
-                PrefabUtility.SaveAsPrefabAsset(go, PrefabPath, out var success);
-            else
-                PrefabUtility.SaveAsPrefabAsset(go, PrefabPath, out var success);
+                AssetDatabase.DeleteAsset(path);
+        }
 
-            Object.DestroyImmediate(go);
-            AssetDatabase.Refresh();
-
-            if (success)
-                Debug.Log($"[CloudSaveUI] Prefab generated at {PrefabPath}");
-            else
-                Debug.LogError("[CloudSaveUI] Failed to generate prefab");
+        static void Ping(GameObject go, string path)
+        {
+            Debug.Log($"[CloudSave] Prefab generated at {path}");
+            Selection.activeGameObject = go;
+            EditorGUIUtility.PingObject(go);
         }
     }
 }

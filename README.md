@@ -269,8 +269,33 @@ CloudAuth.OnLinked += provider => Debug.Log($"Linked to {provider}");
 
 | Method | Description |
 |---|---|
-| `Create()` | Static factory — builds and returns a full CloudSaveUI hierarchy. |
-| `BuildDefaultUI()` | Builds UI and populates serialized references (used by Editor tools). |
+| `Create()` | Static factory — uses `Resources/CloudSaveUI.prefab` if it exists, otherwise auto-generates it (Editor) or builds procedurally (builds). |
+
+### `SyncStatusUI`
+
+| Method | Description |
+|---|---|
+| `Create()` | Static factory — same pattern as CloudSaveUI. |
+| `SetStatus(SyncStatus)` | Set the current sync status manually. |
+| `SetLastSync(DateTime)` | Set the displayed last-sync timestamp. |
+| `SetVisible(bool)` | Show/hide the indicator. |
+
+### `CloudAuthUI`
+
+| Method | Description |
+|---|---|
+| `Create()` | Static factory — same pattern as CloudSaveUI. |
+| `Show()` | Show the account linking dialog. |
+| `Hide()` | Hide the dialog. |
+| `OnLinkRequested` | `event Action` — fires when the player clicks the link button. Wire your platform auth here. |
+| `SetLinkResult(bool)` | Call after auth completes to re-enable the button on failure. |
+
+### `CloudSaveLocale`
+
+| Member | Description |
+|---|---|
+| `Translate` | `Func<string, string>` delegate. Assign to integrate a localization system. Null = English fallback. |
+| All convenience methods | e.g. `Synced()`, `Error()`, `BtnKeepLocal()` — return localized strings. |
 
 ### `CloudAuth`
 
@@ -302,50 +327,149 @@ CloudAuth.OnLinked += provider => Debug.Log($"Linked to {provider}");
 
 The package ships a ready-to-use UI component that shows a loading overlay, toast notifications, and a conflict-resolution dialog.
 
-### Quick start (code-only)
+### Quick start
 
 ```csharp
-// Creates a GameObject with full UI hierarchy built procedurally
 CloudSaveUI.Create();
 ```
 
-The UI hooks into `CloudSync.OnSyncStarted`, `CloudSync.OnSyncCompleted`, and
-`CloudSync.ConflictResolver` automatically — no extra wiring needed. All text
-uses **TextMeshProUGUI**.
+That's it. The first time you call this in the Editor, it auto-generates
+`Assets/Resources/CloudSaveUI.prefab` — open it in the Inspector to customize
+colors, fonts, and layout. On subsequent calls, the prefab is used directly.
+
+In standalone builds, the UI is built procedurally (no prefab required).
 
 ### Custom prefab
 
-1. Call `CloudSaveUI.Create()` once in the Editor (play mode)
-2. Drag the resulting `CloudSaveUI` hierarchy into your project as a prefab
-3. Customize colors, fonts, layout in the Inspector
-4. Right-click the prefab → **Setup References from Children** to populate fields
-5. Use your prefab instead of the default:
+The auto-generated prefab at `Assets/Resources/CloudSaveUI.prefab` is yours to
+modify. After customising, right-click the prefab root →
+**Setup References from Children** to refresh the serialised field bindings.
 
-```csharp
-Instantiate(myCloudSaveUIPrefab);
-```
+To regenerate from scratch (e.g. after breaking the layout):
 
-### Generate a full prefab (Editor tool)
+**Tools → Cloud Save → Setup UI Prefabs → CloudSaveUI**
 
-**Tools → Cloud Save → Generate UI Prefab** creates a ready-to-use prefab at
-`Assets/Resources/CloudSaveUI.prefab` with all references pre-assigned.
+All three UI prefabs can be regenerated at once via **Tools → Cloud Save → Setup UI Prefabs → All**.
 
 ### Serialized fields
 
 | Field | Type | Purpose |
 |---|---|---|
 | `_loadingRoot` | `GameObject` | Loading overlay panel |
-| `_loadingText` | `TextMeshProUGUI` | Animated "Sincronizando..." text |
+| `_loadingText` | `TextMeshProUGUI` | Animated loading text |
 | `_toastRoot` | `GameObject` | Toast notification bar |
 | `_toastBg` | `Image` | Toast background color |
 | `_toastText` | `TextMeshProUGUI` | Toast message text |
 | `_conflictRoot` | `GameObject` | Conflict dialog panel |
-| `_conflictTitle` | `TextMeshProUGUI` | "Save mais recente" title |
+| `_conflictTitle` | `TextMeshProUGUI` | Conflict dialog title |
 | `_localInfoText` | `TextMeshProUGUI` | Local save timestamp |
 | `_cloudInfoText` | `TextMeshProUGUI` | Cloud save timestamp |
 
 If no prefab references are assigned, `BuildUI()` creates the UI hierarchy
 procedurally at startup — zero setup required.
+
+---
+
+## UI: SyncStatusUI (v4.1.0+)
+
+Persistent sync status indicator. Shows a small colored panel (bottom-right) with the current sync state and optional last-sync time.
+
+### Quick start
+
+```csharp
+SyncStatusUI.Create();
+```
+
+### States
+
+| State | Color | Description |
+|---|---|---|
+| `Synced` | Green | Last sync succeeded |
+| `Syncing` | Blue | Sync in progress |
+| `Offline` | Yellow | No connection |
+| `Error` | Red | Sync failed |
+
+The indicator automatically listens to `CloudSync.OnSyncStarted` and `CloudSync.OnSyncCompleted`. Call `SetStatus(SyncStatus)` for manual control.
+
+Custom prefab at `Assets/Resources/SyncStatusUI.prefab` — regenerate via **Tools → Cloud Save → Setup UI Prefabs → SyncStatusUI**.
+
+---
+
+## UI: CloudAuthUI (v4.1.0+)
+
+Modal dialog for linking an anonymous account to a platform provider (Google Play Games on Android, Apple Game Center on iOS).
+
+### Quick start
+
+```csharp
+var auth = CloudAuthUI.Create();
+auth.OnLinkRequested += async () =>
+{
+    var result = await CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);
+    auth.SetLinkResult(result.Status == CloudLinkStatus.Linked);
+};
+auth.Show();
+```
+
+### Serialized fields
+
+| Field | Type | Purpose |
+|---|---|---|
+| `_overlay` | `Image` | Semi-transparent background |
+| `_cardRoot` | `GameObject` | Center card container |
+| `_titleText` | `TextMeshProUGUI` | "Cloud Login" |
+| `_descriptionText` | `TextMeshProUGUI` | Explanatory text |
+| `_statusText` | `TextMeshProUGUI` | "Account: Anonymous" / "Account: {provider}" |
+| `_linkButton` | `Button` | Sign in button |
+| `_linkButtonText` | `TextMeshProUGUI` | Button label |
+| `_closeButton` | `Button` | Close / "Not now" |
+| `_closeButtonText` | `TextMeshProUGUI` | Close label |
+
+Custom prefab at `Assets/Resources/CloudAuthUI.prefab` — regenerate via **Tools → Cloud Save → Setup UI Prefabs → CloudAuthUI**.
+
+---
+
+## Localization (v4.1.0+)
+
+All UI text uses string keys with built-in English fallback. To integrate a localization system (e.g. I2 Localization), assign `CloudSaveLocale.Translate`:
+
+```csharp
+// I2 Localization example
+CloudSaveLocale.Translate = key => LocalizationManager.GetTermTranslation(key);
+```
+
+### String Keys
+
+| Key | Fallback (EN) |
+|---|---|
+| `cloudsave.loading` | Syncing save |
+| `cloudsave.synced` | Cloud save applied |
+| `cloudsave.local_newer` | Local save is up to date |
+| `cloudsave.local_kept` | Local save kept |
+| `cloudsave.offline` | No connection — local save |
+| `cloudsave.error` | Failed to sync save |
+| `cloudsave.conflict_title_cloud` | Cloud save is newer |
+| `cloudsave.conflict_title_account` | Save from another account found |
+| `cloudsave.conflict_choose` | Choose which save to use: |
+| `cloudsave.conflict_local` | Local Save |
+| `cloudsave.conflict_cloud` | Cloud Save |
+| `cloudsave.conflict_none` | No save |
+| `cloudsave.btn_keep_local` | Keep Local |
+| `cloudsave.btn_use_cloud` | Use Cloud |
+| `cloudsave.sync_status_synced` | Synced |
+| `cloudsave.sync_status_syncing` | Syncing... |
+| `cloudsave.sync_status_offline` | Offline |
+| `cloudsave.sync_status_error` | Sync error |
+| `cloudsave.sync_last` | Last sync: {0} |
+| `cloudsave.auth_title` | Cloud Login |
+| `cloudsave.auth_description` | Link your account to access your save on other devices. |
+| `cloudsave.auth_status_anonymous` | Account: Anonymous |
+| `cloudsave.auth_status_linked` | Account: {0} |
+| `cloudsave.auth_btn_google` | Sign in with Google Play Games |
+| `cloudsave.auth_btn_apple` | Sign in with Apple Game Center |
+| `cloudsave.auth_btn_close` | Not now |
+
+When `CloudSaveLocale.Translate` is `null` (default), all strings fall back to the built-in English translations.
 
 ---
 
