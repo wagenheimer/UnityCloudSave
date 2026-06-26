@@ -1,4 +1,7 @@
 using System;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("Wagenheimer.CloudSave.Editor")]
 
 namespace Wagenheimer.CloudSave
 {

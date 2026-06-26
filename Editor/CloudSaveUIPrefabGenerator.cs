@@ -6,32 +6,41 @@ namespace Wagenheimer.CloudSave.Editor
 {
     public static class CloudSaveUIPrefabGenerator
     {
-        const string CloudSaveUIPath = "Assets/Resources/CloudSaveUI.prefab";
+        const string CloudSaveUIPath  = "Assets/Resources/CloudSaveUI.prefab";
         const string SyncStatusUIPath = "Assets/Resources/SyncStatusUI.prefab";
-        const string CloudAuthUIPath = "Assets/Resources/CloudAuthUI.prefab";
+        const string CloudAuthUIPath  = "Assets/Resources/CloudAuthUI.prefab";
 
         [MenuItem("Tools/Cloud Save/Setup UI Prefabs/CloudSaveUI", priority = 100)]
         static void GenerateCloudSaveUI()
         {
-            DeletePrefab(CloudSaveUIPath);
-            var ui = CloudSaveUI.Create();
-            if (ui != null) Ping(ui.gameObject, CloudSaveUIPath);
+            var path = CloudSaveUIPath;
+            DeletePrefab(path);
+            var go = new GameObject("CloudSaveUI");
+            var ui = go.AddComponent<CloudSaveUI>();
+            ui.BuildDefaultUI();
+            SavePrefab(go, path);
         }
 
         [MenuItem("Tools/Cloud Save/Setup UI Prefabs/SyncStatusUI", priority = 101)]
         static void GenerateSyncStatusUI()
         {
-            DeletePrefab(SyncStatusUIPath);
-            var ui = SyncStatusUI.Create();
-            if (ui != null) Ping(ui.gameObject, SyncStatusUIPath);
+            var path = SyncStatusUIPath;
+            DeletePrefab(path);
+            var go = new GameObject("SyncStatusUI");
+            var ui = go.AddComponent<SyncStatusUI>();
+            ui.BuildDefaultUI();
+            SavePrefab(go, path);
         }
 
         [MenuItem("Tools/Cloud Save/Setup UI Prefabs/CloudAuthUI", priority = 102)]
         static void GenerateCloudAuthUI()
         {
-            DeletePrefab(CloudAuthUIPath);
-            var ui = CloudAuthUI.Create();
-            if (ui != null) Ping(ui.gameObject, CloudAuthUIPath);
+            var path = CloudAuthUIPath;
+            DeletePrefab(path);
+            var go = new GameObject("CloudAuthUI");
+            var ui = go.AddComponent<CloudAuthUI>();
+            ui.BuildDefaultUI();
+            SavePrefab(go, path);
         }
 
         [MenuItem("Tools/Cloud Save/Setup UI Prefabs/All", priority = 90)]
@@ -50,11 +59,23 @@ namespace Wagenheimer.CloudSave.Editor
                 AssetDatabase.DeleteAsset(path);
         }
 
-        static void Ping(GameObject go, string path)
+        static void SavePrefab(GameObject go, string path)
         {
-            Debug.Log($"[CloudSave] Prefab generated at {path}");
-            Selection.activeGameObject = go;
-            EditorGUIUtility.PingObject(go);
+            var saved = PrefabUtility.SaveAsPrefabAsset(go, path);
+            Object.DestroyImmediate(go);
+
+            if (saved != null)
+            {
+                var instance = Object.Instantiate(saved);
+                instance.name = go.name;
+                Debug.Log($"[CloudSave] Prefab generated at {path}");
+                Selection.activeGameObject = instance;
+                EditorGUIUtility.PingObject(instance);
+            }
+            else
+            {
+                Debug.LogError($"[CloudSave] Failed to generate prefab at {path}");
+            }
         }
     }
 }

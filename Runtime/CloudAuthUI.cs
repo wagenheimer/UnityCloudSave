@@ -308,6 +308,12 @@ namespace Wagenheimer.CloudSave
                 if (t.name == name) return t.gameObject;
             return null;
         }
+
+        internal void BuildDefaultUI()
+        {
+            BuildUI();
+            SetupReferencesFromChildren();
+        }
 #endif
     }
 }
