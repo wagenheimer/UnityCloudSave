@@ -233,9 +233,9 @@ namespace Wagenheimer.CloudSave
             var prefab = Resources.Load<GameObject>("CloudSaveUI");
             if (prefab != null)
             {
-                var go = Instantiate(prefab);
-                go.name = "CloudSaveUI";
-                return go.GetComponent<CloudSaveUI>();
+                var instance = Instantiate(prefab);
+                instance.name = "CloudSaveUI";
+                return instance.GetComponent<CloudSaveUI>();
             }
 
 #if UNITY_EDITOR

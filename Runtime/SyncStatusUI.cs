@@ -153,9 +153,9 @@ namespace Wagenheimer.CloudSave
             var prefab = Resources.Load<GameObject>("SyncStatusUI");
             if (prefab != null)
             {
-                var go = Instantiate(prefab);
-                go.name = "SyncStatusUI";
-                return go.GetComponent<SyncStatusUI>();
+                var instance = Instantiate(prefab);
+                instance.name = "SyncStatusUI";
+                return instance.GetComponent<SyncStatusUI>();
             }
 
 #if UNITY_EDITOR

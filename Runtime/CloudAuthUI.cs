@@ -55,9 +55,9 @@ namespace Wagenheimer.CloudSave
             var prefab = Resources.Load<GameObject>("CloudAuthUI");
             if (prefab != null)
             {
-                var go = Instantiate(prefab);
-                go.name = "CloudAuthUI";
-                return go.GetComponent<CloudAuthUI>();
+                var instance = Instantiate(prefab);
+                instance.name = "CloudAuthUI";
+                return instance.GetComponent<CloudAuthUI>();
             }
 
 #if UNITY_EDITOR
