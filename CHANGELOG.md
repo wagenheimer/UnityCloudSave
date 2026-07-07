@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.7.1] - 2026-07-07
+
+### Changed
+- docs: clarify auth 3-step flow, add logging reference table to guide, audit, and window
+
 ## [4.7.0] - 2026-07-07
 
 ### Added
