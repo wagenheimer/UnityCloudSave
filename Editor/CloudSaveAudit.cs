@@ -239,6 +239,10 @@ namespace Wagenheimer.CloudSave.Editor
                 detailStyle);
             EditorGUILayout.LabelField("  \u2022 Verify you are logged into Unity Account in the Editor",
                 detailStyle);
+            EditorGUILayout.LabelField("  \u2022 Verify Sign-In Methods are ENABLED in Dashboard \u2192 Authentication \u2192 Sign-In Methods",
+                detailStyle);
+            EditorGUILayout.LabelField("    Anonymous: ON (default) | GPGS: ON + Web client ID | Apple Game Center: ON",
+                detailStyle);
             EditorGUILayout.LabelField("  \u2022 Test real sync: Build & run on device, save, reinstall, check if cloud save loads",
                 detailStyle);
 
@@ -494,10 +498,12 @@ namespace Wagenheimer.CloudSave.Editor
             return Info("Android GPGS auth NOT detected",
                 "Not required. Without GPGS: saves stay on device (anonymous).\n" +
                 "To enable cross-device saves:\n" +
-                "  1. Install GPGS (com.google.play.games)\n" +
-                "  2. PlayGamesPlatform.Instance.Authenticate()\n" +
-                "  3. RequestServerSideAccess(false, code => ...)\n" +
-                "  4. CloudAuth.LinkGooglePlayGamesAsync(code)",
+                "  1. Google Play Console: enable Play Games, get OAuth 2.0 Web client ID\n" +
+                "  2. Dashboard \u2192 Authentication \u2192 Sign-In Methods: activate GPGS + paste client ID\n" +
+                "  3. Install GPGS plugin (com.google.play.games)\n" +
+                "  4. PlayGamesPlatform.Instance.Authenticate()\n" +
+                "  5. RequestServerSideAccess(false, code => ...)\n" +
+                "  6. CloudAuth.LinkGooglePlayGamesAsync(code)",
                 matches);
         }
 
@@ -547,10 +553,12 @@ namespace Wagenheimer.CloudSave.Editor
             return Info("iOS Game Center auth NOT detected",
                 "Not required. Without Game Center: saves stay on device (anonymous).\n" +
                 "To enable cross-device saves:\n" +
-                "  1. Install Apple.GameKit or create a .mm bridge\n" +
-                "  2. Authenticate with Game Center (GKLocalPlayer)\n" +
-                "  3. Get identity verification signature\n" +
-                "  4. CloudAuth.LinkAppleGameCenterAsync(..., signature, ...)",
+                "  1. Apple Developer: enable Game Center on App ID\n" +
+                "  2. Dashboard \u2192 Authentication \u2192 Sign-In Methods: enable Apple Game Center\n" +
+                "  3. Install Apple.GameKit plugin or create a .mm bridge\n" +
+                "  4. Authenticate with Game Center (GKLocalPlayer)\n" +
+                "  5. Get identity verification signature\n" +
+                "  6. CloudAuth.LinkAppleGameCenterAsync(..., signature, ...)",
                 matches);
         }
 
@@ -677,6 +685,20 @@ Do NOT add explanations beyond the table.
 
 13. **Unity Services**
     - Check ProjectSettings/ProjectSettings.asset for ""CloudSave"" or ""Unity Gaming Services""
+
+14. **Dashboard Sign-In Methods (manual check)**
+    - Go to dashboard.unity3d.com \u2192 Authentication \u2192 Sign-In Methods
+    - Verify Anonymous is enabled
+    - If Android: verify Google Play Games is ON and has a Web client ID
+    - If iOS: verify Apple Game Center (and optionally Apple) is ON
+
+15. **Google Play Console (Android, manual check)**
+    - In play.google.com/console, verify Play Games Services is enabled
+    - Verify OAuth 2.0 Web client ID exists and matches Dashboard
+
+16. **Apple Developer (iOS, manual check)**
+    - Verify Game Center capability is enabled on the App ID
+    - If using Sign in with Apple: verify Service ID + Redirect URL
 
 ## Output format
 

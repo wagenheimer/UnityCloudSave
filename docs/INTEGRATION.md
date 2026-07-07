@@ -255,7 +255,59 @@ auth.Show();
 > **IMPORTANTE:** `CloudAuth.Link*` NÃO faz a autenticação com a plataforma.
 > Você precisa autenticar no GPGS / Game Center / Apple **primeiro** e só depois passar os tokens.
 
-### Android — Google Play Games
+### 7.1 — Unity Dashboard: configurar os Sign-In Methods
+
+Antes de qualquer código de auth, você precisa avisar o UGS Authentication que vai usar Google Play Games / Apple como provedores de login.
+
+**Passo a passo:**
+
+1. Acessar [dashboard.unity3d.com](https://dashboard.unity3d.com/) → seu projeto
+2. **Authentication** (no menu lateral) → **Sign-In Methods**
+3. **Anonymous** — já vem ativado por padrão ✔️
+4. **Google Play Games** — clicar para ativar
+   - Campo **Web client ID**: colar o OAuth 2.0 Web client ID do Google Play Console (explicado na [seção 7.2](#72-google-play-console-android))
+5. **Apple Game Center** — ativar (iOS, sem precisar de configuração extra no Dashboard)
+6. **Apple** — ativar (Sign in with Apple, iOS)
+   - Campos: **Service ID** + **Redirect URL** — obter no Apple Developer
+
+> ⚠️ Se você **não ativar** o provedor no Dashboard, a chamada `AuthenticationService.Instance.LinkWithGooglePlayGamesAsync(code)` vai lançar um erro do tipo "provider not configured". O Audit do pacote inclui essa verificação.
+
+### 7.2 — Google Play Console (Android)
+
+Antes de escrever código Android, o app precisa estar configurado no Google Play Console:
+
+1. Acessar [play.google.com/console](https://play.google.com/console/) → seu app
+2. **Play Games Services** → **Setup & Management** → **Configuration**
+3. Criar ou vincular um **OAuth 2.0 Web client ID** (sim, Web — não Android):
+   - Vai para **Google Cloud Console** → **APIs & Services** → **Credentials**
+   - Criar um **OAuth 2.0 Web client** (tipo "Web application")
+   - Copiar o **Client ID** gerado
+4. Voltar ao **Unity Dashboard** → Authentication → Sign-In Methods → Google Play Games
+5. Colar o Client ID no campo **Web client ID**
+6. No Google Play Console, adicionar as contas de teste (se o app não estiver publicado)
+7. Na Unity: instalar o GPGS plugin via Package Manager (`com.google.play.games`)
+
+### 7.3 — Apple Developer (iOS)
+
+#### Game Center
+
+1. [developer.apple.com](https://developer.apple.com/) → **Certificates, Identifiers & Profiles**
+2. Selecionar o **App ID** do seu app
+3. Ativar **Game Center** capability
+4. **Save** e gerar novo perfil de provisionamento
+5. No **Unity Dashboard** → Authentication → Sign-In Methods → **Apple Game Center** — ativar (não precisa colar nada)
+
+#### Sign in with Apple (opcional, se for usar `LinkAppleAsync`)
+
+1. No mesmo App ID, ativar **Sign in with Apple**
+2. Criar um **Service ID** (identificador para o login)
+3. Configurar **Redirect URL** (geralmente `https://{seu-projeto}.unitygameservices.com`)
+4. No **Unity Dashboard** → Authentication → Sign-In Methods → **Apple**
+   - Colar o **Service ID** e **Redirect URL**
+
+### 7.4 — Android: Google Play Games (código)
+
+Depois de configurar tudo acima, o código é o mesmo — mas agora funciona:
 
 **3 passos obrigatórios:**
 
@@ -301,7 +353,7 @@ PlayGamesPlatform.Instance.Authenticate(status =>
 
 Ver README para exemplo completo com `SignedInExisting`.
 
-### iOS — Apple Game Center
+### 7.5 — iOS: Apple Game Center (código)
 
 **Pré-requisito:** Você PRECISA de uma bridge nativa para chamar `GKLocalPlayer.generateIdentityVerificationSignature`. Duas opções:
 
@@ -330,7 +382,7 @@ Debug.Log($"Link result: {result.Status}");
 **Opção B — Bridge nativa `.mm` (sem Apple.GameKit):**
 Criar `Assets/Plugins/iOS/GameCenterBridge.mm` (código no README.md).
 
-### iOS — Sign in with Apple
+### 7.6 — iOS: Sign in with Apple (código)
 
 ```csharp
 // PASSO 1 — Autenticar com Apple
@@ -340,7 +392,7 @@ var credential = await AppleAuthManager.LoginWithAppleId(...);
 var result = await CloudAuth.LinkAppleAsync(credential.IdentityToken);
 ```
 
-### Eventos de auth
+### 7.7 — Eventos de auth
 
 ```csharp
 CloudAuth.OnLinked += provider => Debug.Log($"Linked: {provider}");
@@ -386,7 +438,10 @@ Simula sem precisar de internet ou credenciais:
 - [ ] Classe de save tem campo `long LastSaved`
 - [ ] `CloudSaveUI.Create()` chamado (se quiser UI)
 - [ ] `SyncStatusUI.Create()` chamado (se quiser indicador)
-- [ ] Auth upgrade configurado (se precisar cross-device)
+- [ ] Sign-In Methods configurados no Dashboard (Authentication → Sign-In Methods)
+- [ ] Google Play Console configurado (OAuth 2.0 Web client ID) + GPGS plugin instalado (se Android)
+- [ ] Apple Developer: Game Center ativado no App ID + bridge nativa (se iOS)
+- [ ] `CloudAuth.LinkGooglePlayGamesAsync()` / `LinkAppleGameCenterAsync()` chamado (se cross-device)
 - [ ] Testado via **Test Window** (Tools → Wagenheimer → Cloud Save → Open Test Window)
 
 ---

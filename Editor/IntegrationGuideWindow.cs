@@ -73,18 +73,23 @@ namespace Wagenheimer.CloudSave.Editor
                 "Your data class MUST include a timestamp:",
                 code: "[System.Serializable]\npublic class MeuSaveData\n{\n    public long LastSaved;  // REQUIRED\n    public int Moedas;\n    public int Fase;\n}");
 
-            DrawCard(8, "Auth \u2014 Android (optional)",
-                "STEP 1: Authenticate GPGS\nSTEP 2: RequestServerSideAccess\nSTEP 3: LinkGooglePlayGamesAsync",
+            DrawCard(8, "Dashboard: Configure Sign-In Methods",
+                "PR\u00c9-REQUISITO para auth upgrade (Android/iOS).\n\nDashboard \u2192 Authentication \u2192 Sign-In Methods:\n  \u2022 Anonymous: enabled by default \u2713\n  \u2022 Google Play Games: paste Web client ID from Google Play Console\n  \u2022 Apple Game Center: just enable (no extra fields)\n  \u2022 Apple (Sign in with Apple): fill Service ID + Redirect URL\n\nWithout this, LinkGooglePlayGamesAsync / LinkApple* will fail.",
+                code: "Dashboard URL (click to open):\nhttps://dashboard.unity3d.com/",
+                link: "\ud83d\udd17 Open Dashboard \u2192 Authentication", url: "https://dashboard.unity3d.com/");
+
+            DrawCard(9, "Auth \u2014 Android (optional)",
+                "PR\u00c9-REQUISITOS:\n  1. Google Play Console: enable Play Games Services + get OAuth 2.0 Web client ID\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: activate GPGS + paste client ID\n  3. Install GPGS plugin: com.google.play.games\n\nCODE (3 steps):\nSTEP 1: PlayGamesPlatform.Authenticate\nSTEP 2: RequestServerSideAccess(false, code =>)\nSTEP 3: CloudAuth.LinkGooglePlayGamesAsync(code)",
                 code: "// 1 \u2014 Autenticar no Google Play Games\nPlayGamesPlatform.Instance.Authenticate(status =>\n{\n    if (status != SignInStatus.Success) return;\n\n    // 2 \u2014 Solicitar server auth code\n    PlayGamesPlatform.Instance.RequestServerSideAccess(\n        false, serverAuthCode =>\n    {\n        // 3 \u2014 Vincular ao UGS\n        _ = CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);\n    });\n});");
 
-            DrawCard(9, "Auth \u2014 iOS (optional)",
-                "STEP 1: Sign in to Game Center\nSTEP 2: Get identity verification\nSTEP 3: LinkAppleGameCenterAsync\n\nRequires Apple.GameKit plugin or native .mm bridge.\nSee docs/INTEGRATION.md for full details.");
+            DrawCard(10, "Auth \u2014 iOS (optional)",
+                "PR\u00c9-REQUISITOS:\n  1. Apple Developer: enable Game Center on App ID\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: enable Apple Game Center\n  3. Install Apple.GameKit plugin OR create native .mm bridge\n\nCODE (3 steps):\nSTEP 1: GKLocalPlayer.Local\nSTEP 2: FetchItemsForIdentityVerificationSignatureAsync\nSTEP 3: CloudAuth.LinkAppleGameCenterAsync(...)");
 
-            DrawCard(10, "Test Without UGS",
+            DrawCard(11, "Test Without UGS",
                 "Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Open Test Window\nSimulate sync, toasts, conflicts and events \u2014 no internet needed.");
 
-            DrawCard(11, "Audit Integration",
-                "Run a full project scan: Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Audit Integration");
+            DrawCard(12, "Audit Integration",
+                "Run a full project scan: Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Audit Integration\nValidates package, code, UIs, auth calls, platform plugins, AND sign-in methods.");
 
             GUILayout.Space(10);
 
