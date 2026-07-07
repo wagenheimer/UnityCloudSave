@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.7.2] - 2026-07-07
+
+### Fixed
+- proper UTF-8 encoding for INTEGRATION.md (was corrupted by Add-Content)
+
 ## [4.7.1] - 2026-07-07
 
 ### Changed
