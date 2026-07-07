@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.3.3] - 2026-07-07
+
+### Fixed
+- pass commit message via env to avoid shell breakage/injection
+
+### Changed
+- refactor: unify Editor menus under Tools/Wagenheimer/Cloud Save
+
 ## [4.3.2] - 2026-07-07
 
 ### Fixed
