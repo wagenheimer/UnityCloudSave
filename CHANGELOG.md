@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.5.1] - 2026-07-07
+
+### Fixed
+- add missing AGENTS.md.meta and document .meta requirement in AGENTS.md
+
 ## [4.5.0] - 2026-07-07
 
 ### Added
