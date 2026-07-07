@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.5.0] - 2026-07-07
+
+### Added
+- Add AGENTS.md, integration guide, audit tool, and instructions window
+
 ## [4.4.0] - 2026-07-07
 
 ### Added
