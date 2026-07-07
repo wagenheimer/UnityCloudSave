@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.3.2] - 2026-07-07
+
+### Fixed
+- add missing .meta files for CHANGELOG.md, LICENSE, README.md, docs/
+
 ## [4.3.1] - 2026-07-07
 
 ### Fixed
