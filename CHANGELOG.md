@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.6.1] - 2026-07-07
+
+### Changed
+- refactor: redesign audit with progress bar, file-level details, manual checks, and cards
+
 ## [4.6.0] - 2026-07-07
 
 ### Added
