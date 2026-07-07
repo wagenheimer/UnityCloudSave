@@ -149,6 +149,8 @@ namespace Wagenheimer.CloudSave.Editor
             _results.Add(CheckSyncStatusUICreated());
             _results.Add(CheckCloudAuthUICreated());
             _results.Add(CheckAuthUpgrade());
+            _results.Add(CheckAndroidAuth());
+            _results.Add(CheckiOSAuth());
             _results.Add(CheckProjectSettings());
         }
 
@@ -443,11 +445,94 @@ namespace Wagenheimer.CloudSave.Editor
         {
             var matches = FindInCsFiles("LinkGooglePlayGamesAsync|LinkAppleGameCenterAsync|LinkAppleAsync", true);
             if (matches.Count > 0)
-                return Pass("Auth upgrade configured", "Player can link to GPGS / Apple Game Center.", matches);
+            {
+                var hasAndroid = false;
+                var hasIOS = false;
+                foreach (var m in matches)
+                {
+                    if (m.Contains("LinkGooglePlayGames")) hasAndroid = true;
+                    if (m.Contains("LinkApple")) hasIOS = true;
+                }
+                var detail = "";
+                if (hasAndroid) detail += "Android (GPGS) configured. ";
+                if (hasIOS) detail += "iOS (Apple) configured. ";
+                return Pass("Auth upgrade code found", detail.Trim(), matches);
+            }
             return Info("Auth upgrade NOT configured",
                 "Optional but needed for cross-device saves.\n" +
-                "Add: await CloudAuth.LinkGooglePlayGamesAsync(code);  (Android, requires GPGS plugin)\n" +
-                "Add: await CloudAuth.LinkAppleGameCenterAsync(...);  (iOS, requires native bridge)",
+                "Android: await CloudAuth.LinkGooglePlayGamesAsync(code);  (requires GPGS plugin)\n" +
+                "iOS: await CloudAuth.LinkAppleGameCenterAsync(...);  (requires native bridge)",
+                matches);
+        }
+
+        static AuditItem CheckAndroidAuth()
+        {
+            var matches = new List<string>();
+
+            var manifestPath = Path.GetFullPath("Packages/manifest.json");
+            if (File.Exists(manifestPath))
+            {
+                var text = File.ReadAllText(manifestPath);
+                if (text.Contains("com.google.play.games"))
+                    matches.Add("Found: com.google.play.games in Packages/manifest.json");
+            }
+
+            var pluginDir = new DirectoryInfo(Path.GetFullPath("Assets"));
+            if (pluginDir.Exists)
+            {
+                var gpgFiles = pluginDir.GetFiles("*GooglePlayGames*", SearchOption.AllDirectories);
+                foreach (var f in gpgFiles.Take(3))
+                    matches.Add("Found: " + GetRelativePath(f.FullName));
+            }
+
+            var csMatches = FindInCsFiles("PlayGamesPlatform|GooglePlayGames", true);
+            matches.AddRange(csMatches.Take(3));
+
+            if (matches.Count > 0)
+                return Pass("Android (GPGS) auth setup detected",
+                    "Google Play Games plugin found. Ensure it's configured for cross-device saves.", matches);
+            return Info("Android GPGS auth NOT detected",
+                "Not required. Without GPGS: saves are tied to device UUID (anonymous auth).\n" +
+                "To enable cross-device: install com.google.play.games and call LinkGooglePlayGamesAsync().",
+                matches);
+        }
+
+        static AuditItem CheckiOSAuth()
+        {
+            var matches = new List<string>();
+
+            var pluginDir = new DirectoryInfo(Path.GetFullPath("Assets"));
+            if (pluginDir.Exists)
+            {
+                var mmFiles = pluginDir.GetFiles("*.mm", SearchOption.AllDirectories);
+                foreach (var f in mmFiles)
+                {
+                    var text = File.ReadAllText(f.FullName);
+                    if (text.Contains("GameCenter") || text.Contains("generateIdentityVerificationSignature"))
+                        matches.Add("Native bridge: " + GetRelativePath(f.FullName));
+                }
+
+                var swiftFiles = pluginDir.GetFiles("*.swift", SearchOption.AllDirectories);
+                foreach (var f in swiftFiles)
+                {
+                    var text = File.ReadAllText(f.FullName);
+                    if (text.Contains("GameCenter") || text.Contains("GKLocalPlayer"))
+                        matches.Add("Swift bridge: " + GetRelativePath(f.FullName));
+                }
+            }
+
+            var csMatches = FindInCsFiles("Apple\\.GameKit|GKLocalPlayer|FetchItemsForIdentityVerification", true);
+            matches.AddRange(csMatches.Take(3));
+
+            var appleLink = FindInCsFiles("LinkAppleGameCenterAsync|LinkAppleAsync", true);
+            matches.AddRange(appleLink.Take(2));
+
+            if (matches.Count > 0)
+                return Pass("iOS (Game Center / Apple) auth setup detected",
+                    "Native bridge or Apple.GameKit reference found.", matches);
+            return Info("iOS Game Center auth NOT detected",
+                "Not required. Without Game Center: saves are tied to device UUID (anonymous auth).\n" +
+                "To enable cross-device: add Apple.GameKit plugin or native .mm bridge, then call LinkAppleGameCenterAsync().",
                 matches);
         }
 
@@ -537,7 +622,7 @@ Do NOT add explanations beyond the table.
 
 2. **CloudSync.Configure()**
    - Search .cs files for ""CloudSync.Configure""
-   - If found, note the key used (e.g. ""CloudSync.Configure(""my_key"")"")
+   - If found, note the key used
 
 3. **CloudSync.InitAndSyncAsync()**
    - Search .cs files for ""CloudSync.InitAndSyncAsync""
@@ -549,30 +634,37 @@ Do NOT add explanations beyond the table.
    - Search .cs files for ""long LastSaved"" in [System.Serializable] classes
 
 6. **[System.Serializable] class**
-   - Search .cs files for a class with [System.Serializable] that contains save data
+   - Search .cs files for a [System.Serializable] class for save data
 
-7. **CloudSaveUI.Create()**
-   - Search .cs files for ""CloudSaveUI.Create()""
+7. **CloudSaveUI.Create()** — Search .cs for ""CloudSaveUI.Create()""
 
-8. **SyncStatusUI.Create()**
-   - Search .cs files for ""SyncStatusUI.Create()""
+8. **SyncStatusUI.Create()** — Search .cs for ""SyncStatusUI.Create()""
 
-9. **CloudAuthUI.Create()**
-   - Search .cs files for ""CloudAuthUI.Create()""
+9. **CloudAuthUI.Create()** — Search .cs for ""CloudAuthUI.Create()""
    - Also check if ""OnLinkRequested"" is wired
 
-10. **Auth upgrade**
+10. **Auth upgrade (UGS link calls)**
     - Search .cs for ""LinkGooglePlayGamesAsync"", ""LinkAppleGameCenterAsync"", ""LinkAppleAsync""
+    - Note which platform(s) are configured
 
-11. **Unity Services**
+11. **Android GPGS plugin**
+    - Check Packages/manifest.json for ""com.google.play.games""
+    - Search Assets/ for GooglePlayGames DLLs or .cs references
+    - Search .cs for ""PlayGamesPlatform"" or ""GooglePlayGames""
+
+12. **iOS native bridge**
+    - Search Assets/Plugins/iOS/ for .mm files containing ""GameCenter"" or ""GKLocalPlayer""
+    - Search .cs for ""Apple.GameKit"", ""GKLocalPlayer"", ""FetchItemsForIdentityVerification""
+    - Search for ""LinkAppleGameCenterAsync"" or ""LinkAppleAsync""
+
+13. **Unity Services**
     - Check ProjectSettings/ProjectSettings.asset for ""CloudSave"" or ""Unity Gaming Services""
 
 ## Output format
 
 | # | Item | Status | Files Found | Details/Action Needed |
 |---|------|--------|-------------|----------------------|
-| 1 | Package installed | ✅ / ❌ / ⚠️ | (file paths) | (what to do) |
-| 2 | CloudSync.Configure | ✅ / ❌ | ... | ... |
+| 1 | Package installed | ✅ / ❌ / ⚠️ | (paths) | (what to do) |
 | ... | ... | ... | ... | ... |";
         }
     }
