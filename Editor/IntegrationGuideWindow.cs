@@ -74,11 +74,11 @@ namespace Wagenheimer.CloudSave.Editor
                 code: "[System.Serializable]\npublic class MeuSaveData\n{\n    public long LastSaved;  // REQUIRED\n    public int Moedas;\n    public int Fase;\n}");
 
             DrawCard(8, "Auth \u2014 Android (optional)",
-                "After GPGS sign-in, link anonymous account:",
-                code: "PlayGamesPlatform.Instance.RequestServerSideAccess(\n    false, code =>\n{\n    _ = CloudAuth.LinkGooglePlayGamesAsync(code);\n});");
+                "STEP 1: Authenticate GPGS\nSTEP 2: RequestServerSideAccess\nSTEP 3: LinkGooglePlayGamesAsync",
+                code: "// 1 \u2014 Autenticar no Google Play Games\nPlayGamesPlatform.Instance.Authenticate(status =>\n{\n    if (status != SignInStatus.Success) return;\n\n    // 2 \u2014 Solicitar server auth code\n    PlayGamesPlatform.Instance.RequestServerSideAccess(\n        false, serverAuthCode =>\n    {\n        // 3 \u2014 Vincular ao UGS\n        _ = CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);\n    });\n});");
 
             DrawCard(9, "Auth \u2014 iOS (optional)",
-                "Via Apple.GameKit or Sign in with Apple.\nSee docs/INTEGRATION.md for details.");
+                "STEP 1: Sign in to Game Center\nSTEP 2: Get identity verification\nSTEP 3: LinkAppleGameCenterAsync\n\nRequires Apple.GameKit plugin or native .mm bridge.\nSee docs/INTEGRATION.md for full details.");
 
             DrawCard(10, "Test Without UGS",
                 "Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Open Test Window\nSimulate sync, toasts, conflicts and events \u2014 no internet needed.");

@@ -251,36 +251,92 @@ auth.Show();
 
 ## 7. Auth upgrade (Android/iOS)
 
+> **IMPORTANTE:** `CloudAuth.Link*` NÃO faz a autenticação com a plataforma.
+> Você precisa autenticar no GPGS / Game Center / Apple **primeiro** e só depois passar os tokens.
+
 ### Android — Google Play Games
 
-1. Instalar GPGS: `com.google.play.games` (OpenUPM ou .unitypackage)
-2. Após `PlayGamesPlatform.Authenticate()`, chamar:
+**3 passos obrigatórios:**
+
+1. **Autenticar no GPGS** (`PlayGamesPlatform.Authenticate`)
+2. **Solicitar o server auth code** (`RequestServerSideAccess`)
+3. **Passar o código pro CloudAuth** (`LinkGooglePlayGamesAsync`)
 
 ```csharp
-PlayGamesPlatform.Instance.RequestServerSideAccess(false, code =>
+using GooglePlayGames;
+using GooglePlayGames.BasicApi;
+
+// PASSO 1 — Autenticar no Google Play Games
+PlayGamesPlatform.Instance.Authenticate(status =>
 {
-    _ = CloudAuth.LinkGooglePlayGamesAsync(code);
+    if (status != SignInStatus.Success)
+    {
+        Debug.LogWarning("GPGS auth failed.");
+        return;
+    }
+
+    // PASSO 2 — Pegar o server auth code
+    PlayGamesPlatform.Instance.RequestServerSideAccess(
+        forceRefreshToken: false,
+        serverAuthCode =>
+        {
+            if (string.IsNullOrEmpty(serverAuthCode))
+            {
+                Debug.LogWarning("Server auth code is null.");
+                return;
+            }
+
+            // PASSO 3 — Vincular ao Unity Cloud Save (UGS)
+            _ = CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);
+        });
 });
+```
+
+**Logs que você vai ver no console:**
+```
+[CloudAuth] Ready. PlayerId=xxx Provider=Anonymous       ← antes do link
+[CloudAuth] Linked: provider=GooglePlayGames PlayerId=xxx ← depois do link
 ```
 
 Ver README para exemplo completo com `SignedInExisting`.
 
 ### iOS — Apple Game Center
 
-Opção A — Apple.GameKit (recomendado):
+**Pré-requisito:** Você PRECISA de uma bridge nativa para chamar `GKLocalPlayer.generateIdentityVerificationSignature`. Duas opções:
+
+**Opção A — Apple.GameKit (recomendado):**
 ```csharp
+using Apple.GameKit;
+
+// PASSO 1 — Autenticar no Game Center
 var player = GKLocalPlayer.Local;
-var (pubKey, sig, salt, ts) = await player.FetchItemsForIdentityVerificationSignatureAsync();
-await CloudAuth.LinkAppleGameCenterAsync(pubKey, Convert.ToBase64String(sig), Convert.ToBase64String(salt), ts, player.TeamPlayerId);
+
+// PASSO 2 — Pegar a identidade
+var (pubKeyUrl, signature, salt, timestamp) =
+    await player.FetchItemsForIdentityVerificationSignatureAsync();
+
+// PASSO 3 — Vincular ao Unity Cloud Save (UGS)
+var result = await CloudAuth.LinkAppleGameCenterAsync(
+    publicKeyUrl : pubKeyUrl,
+    signature    : Convert.ToBase64String(signature),
+    salt         : Convert.ToBase64String(salt),
+    timestamp    : timestamp,
+    teamPlayerId : player.TeamPlayerId);
+
+Debug.Log($"Link result: {result.Status}");
 ```
 
-Opção B — Bridge nativa `.mm` (ver README para código completo).
+**Opção B — Bridge nativa `.mm` (sem Apple.GameKit):**
+Criar `Assets/Plugins/iOS/GameCenterBridge.mm` (código no README.md).
 
 ### iOS — Sign in with Apple
 
 ```csharp
+// PASSO 1 — Autenticar com Apple
 var credential = await AppleAuthManager.LoginWithAppleId(...);
-await CloudAuth.LinkAppleAsync(credential.IdentityToken);
+
+// PASSO 2 — Vincular ao UGS
+var result = await CloudAuth.LinkAppleAsync(credential.IdentityToken);
 ```
 
 ### Eventos de auth
@@ -397,3 +453,24 @@ e explique no "Detalhes".
 ```
 
 ---
+
+---
+
+## 12. Logging � o que esperar no console
+
+O pacote loga tudo via Debug.Log / Debug.LogWarning. Procure no console por tags [CloudAuth], [CloudSync], [CloudSave].
+
+| Tag | Quando aparece | Exemplo |
+|-----|---------------|---------|
+| [CloudAuth] Ready | UGS initialized + anonymous sign-in OK | [CloudAuth] Ready. PlayerId=xxx Provider=Anonymous |
+| [CloudAuth] Init failed | Sem internet ou projeto n�o vinculado | [CloudAuth] Init failed: No internet connection |
+| [CloudAuth] Linked | Link com GPGS/GameCenter OK | [CloudAuth] Linked: provider=GooglePlayGames PlayerId=xxx |
+| [CloudAuth] SignedInExisting | Credencial j� vinculada a outra conta | [CloudAuth] SignedInExisting: provider=Apple |
+| [CloudAuth] Link* failed | Link recusado (token inv�lido, etc.) | [CloudAuth] LinkGooglePlayGames failed: ... |
+| [CloudSync] Saved to cloud | SaveAsync enviou dados com sucesso | [CloudSync] Saved to cloud. |
+| [CloudSync] Save failed | Upload falhou | [CloudSync] Save failed: ... |
+| [CloudSync] No cloud save found | InitAndSync � primeiro save (n�o existe nada na nuvem) | [CloudSync] No cloud save found yet. |
+| [CloudSync] InitAndSync error | Sync falhou completamente | [CloudSync] InitAndSync error: ... |
+| (Debug geral) | UIs, prefabs, etc. | [CloudSave] Prefab generated at ... |
+
+Se **n�o aparecer nenhum log** com [CloudAuth] ou [CloudSync], o c�digo n�o est� chamando as APIs do pacote � rode o **Audit** para confirmar.

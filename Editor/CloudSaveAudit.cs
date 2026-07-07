@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -41,8 +41,6 @@ namespace Wagenheimer.CloudSave.Editor
 
         void OnGUI()
         {
-            var bg = ColBg;
-
             EditorGUI.DrawRect(new Rect(0, 0, position.width, 54), ColAccent);
             GUILayout.Space(8);
             var bannerStyle = new GUIStyle(EditorStyles.boldLabel)
@@ -60,7 +58,7 @@ namespace Wagenheimer.CloudSave.Editor
             EditorGUILayout.LabelField("Scans your project for CloudSave setup status", subStyle);
             GUILayout.Space(6);
 
-            EditorGUI.DrawRect(new Rect(0, 54, position.width, position.height - 54), bg);
+            EditorGUI.DrawRect(new Rect(0, 54, position.width, position.height - 54), ColBg);
 
             var areaStyle = new GUIStyle { padding = new RectOffset(6, 6, 4, 4) };
             EditorGUILayout.BeginVertical(areaStyle);
@@ -341,7 +339,7 @@ namespace Wagenheimer.CloudSave.Editor
             var matches = FindInCsFiles("CloudSync\\.InitAndSyncAsync", true);
             if (matches.Count > 0)
                 return Pass("CloudSync.InitAndSyncAsync() called",
-                    $"Found {matches.Count} reference(s). Syncs cloud → local with conflict resolution.", matches);
+                    $"Found {matches.Count} reference(s). Syncs cloud \u2192 local with conflict resolution.", matches);
             return Fail("CloudSync.InitAndSyncAsync() NOT called",
                 "Required at startup after Configure():\n_ = CloudSync.InitAndSyncAsync(timestamp, OnCloudNewer);", matches);
         }
@@ -368,7 +366,7 @@ namespace Wagenheimer.CloudSave.Editor
                     var text = File.ReadAllText(f);
                     var m = regex.Match(text);
                     if (m.Success)
-                        matches.Add(Path.GetFileName(f) + "  —  " + m.Value);
+                        matches.Add(Path.GetFileName(f) + "  \u2014  " + m.Value);
                 }
                 catch { }
             }
@@ -411,7 +409,7 @@ namespace Wagenheimer.CloudSave.Editor
             if (matches.Count > 0)
                 return Pass("CloudSaveUI.Create() called", "Shows loading overlay, toasts, conflict dialog.", matches);
             return Info("CloudSaveUI.Create() NOT called",
-                "Recommended: CloudSaveUI.Create();  — shows loading overlay, toasts, and conflict dialog.", matches);
+                "Recommended: CloudSaveUI.Create();  \u2014 shows loading overlay, toasts, and conflict dialog.", matches);
         }
 
         static AuditItem CheckSyncStatusUICreated()
@@ -420,7 +418,7 @@ namespace Wagenheimer.CloudSave.Editor
             if (matches.Count > 0)
                 return Pass("SyncStatusUI.Create() called", "Persistent sync status indicator.", matches);
             return Info("SyncStatusUI.Create() NOT called",
-                "Recommended: SyncStatusUI.Create();  — corner indicator (Synced/Syncing/Offline/Error)", matches);
+                "Recommended: SyncStatusUI.Create();  \u2014 corner indicator (Synced/Syncing/Offline/Error)", matches);
         }
 
         static AuditItem CheckCloudAuthUICreated()
@@ -460,11 +458,12 @@ namespace Wagenheimer.CloudSave.Editor
             }
             return Info("Auth upgrade NOT configured",
                 "Optional but needed for cross-device saves.\n" +
-                "Android: await CloudAuth.LinkGooglePlayGamesAsync(code);  (requires GPGS plugin)\n" +
-                "iOS: await CloudAuth.LinkAppleGameCenterAsync(...);  (requires native bridge)",
+                "Android: PlayGamesPlatform.Authenticate() \u2192 RequestServerSideAccess() \u2192 LinkGooglePlayGamesAsync(code)\n" +
+                "iOS: GKLocalPlayer auth \u2192 get signature \u2192 LinkAppleGameCenterAsync(...)",
                 matches);
         }
 
+        /// Checks for Android GPGS plugin (com.google.play.games) and PlayGamesPlatform references.
         static AuditItem CheckAndroidAuth()
         {
             var matches = new List<string>();
@@ -490,13 +489,19 @@ namespace Wagenheimer.CloudSave.Editor
 
             if (matches.Count > 0)
                 return Pass("Android (GPGS) auth setup detected",
-                    "Google Play Games plugin found. Ensure it's configured for cross-device saves.", matches);
+                    "Google Play Games plugin found.", matches);
+
             return Info("Android GPGS auth NOT detected",
-                "Not required. Without GPGS: saves are tied to device UUID (anonymous auth).\n" +
-                "To enable cross-device: install com.google.play.games and call LinkGooglePlayGamesAsync().",
+                "Not required. Without GPGS: saves stay on device (anonymous).\n" +
+                "To enable cross-device saves:\n" +
+                "  1. Install GPGS (com.google.play.games)\n" +
+                "  2. PlayGamesPlatform.Instance.Authenticate()\n" +
+                "  3. RequestServerSideAccess(false, code => ...)\n" +
+                "  4. CloudAuth.LinkGooglePlayGamesAsync(code)",
                 matches);
         }
 
+        /// Checks for iOS native bridge (.mm/.swift with GameCenter) and Apple.GameKit references.
         static AuditItem CheckiOSAuth()
         {
             var matches = new List<string>();
@@ -507,17 +512,25 @@ namespace Wagenheimer.CloudSave.Editor
                 var mmFiles = pluginDir.GetFiles("*.mm", SearchOption.AllDirectories);
                 foreach (var f in mmFiles)
                 {
-                    var text = File.ReadAllText(f.FullName);
-                    if (text.Contains("GameCenter") || text.Contains("generateIdentityVerificationSignature"))
-                        matches.Add("Native bridge: " + GetRelativePath(f.FullName));
+                    try
+                    {
+                        var text = File.ReadAllText(f.FullName);
+                        if (text.Contains("GameCenter") || text.Contains("generateIdentityVerificationSignature"))
+                            matches.Add("Native bridge: " + GetRelativePath(f.FullName));
+                    }
+                    catch { }
                 }
 
                 var swiftFiles = pluginDir.GetFiles("*.swift", SearchOption.AllDirectories);
                 foreach (var f in swiftFiles)
                 {
-                    var text = File.ReadAllText(f.FullName);
-                    if (text.Contains("GameCenter") || text.Contains("GKLocalPlayer"))
-                        matches.Add("Swift bridge: " + GetRelativePath(f.FullName));
+                    try
+                    {
+                        var text = File.ReadAllText(f.FullName);
+                        if (text.Contains("GameCenter") || text.Contains("GKLocalPlayer"))
+                            matches.Add("Swift bridge: " + GetRelativePath(f.FullName));
+                    }
+                    catch { }
                 }
             }
 
@@ -530,9 +543,14 @@ namespace Wagenheimer.CloudSave.Editor
             if (matches.Count > 0)
                 return Pass("iOS (Game Center / Apple) auth setup detected",
                     "Native bridge or Apple.GameKit reference found.", matches);
+
             return Info("iOS Game Center auth NOT detected",
-                "Not required. Without Game Center: saves are tied to device UUID (anonymous auth).\n" +
-                "To enable cross-device: add Apple.GameKit plugin or native .mm bridge, then call LinkAppleGameCenterAsync().",
+                "Not required. Without Game Center: saves stay on device (anonymous).\n" +
+                "To enable cross-device saves:\n" +
+                "  1. Install Apple.GameKit or create a .mm bridge\n" +
+                "  2. Authenticate with Game Center (GKLocalPlayer)\n" +
+                "  3. Get identity verification signature\n" +
+                "  4. CloudAuth.LinkAppleGameCenterAsync(..., signature, ...)",
                 matches);
         }
 
