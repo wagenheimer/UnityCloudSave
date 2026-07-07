@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.3.1] - 2026-07-07
+
+### Fixed
+- resolve CS0104 ambiguous PackageInfo reference
+
 ## [4.3.0] - 2026-07-07
 
 ### Added
