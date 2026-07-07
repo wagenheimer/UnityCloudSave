@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.3.0] - 2026-07-07
+
+### Added
+- auto-generate CHANGELOG.md entry on version bump
+
 ## [4.2.0] - 2026-07-07
 
 ### Added
