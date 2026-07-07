@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.7.3] - 2026-07-07
+
+### Changed
+- docs: add full Dashboard sign-in method prerequisites and platform console setup steps to guide, audit, and editor window
+
 ## [4.7.2] - 2026-07-07
 
 ### Fixed
