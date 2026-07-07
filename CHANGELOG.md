@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.7.0] - 2026-07-07
+
+### Added
+- add Android GPGS and iOS native bridge detection to audit tool
+
 ## [4.6.1] - 2026-07-07
 
 ### Changed
