@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.2.0] - 2026-07-07
+
+### Added
+- add self-update checker and CI version auto-bump workflow — Editor checker compara a versão instalada com a do branch `main` e avisa quando há uma nova; GitHub Actions agora faz bump automático de versão, tag e release a cada push
+
 ## [4.1.1] - 2026-06-25
 
 ### Fixed

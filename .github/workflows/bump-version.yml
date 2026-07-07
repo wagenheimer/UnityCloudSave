@@ -48,11 +48,45 @@ jobs:
           mv package.json.tmp package.json
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Update CHANGELOG.md
+        run: |
+          PREV_TAG=$(git tag --sort=-creatordate | head -n 1)
+          RANGE="${PREV_TAG:+$PREV_TAG..}HEAD"
+
+          ADDED=() ; FIXED=() ; CHANGED=()
+          while IFS= read -r c; do
+            [ -z "$c" ] && continue
+            case "$c" in
+              feat*) ADDED+=("- ${c#*: }") ;;
+              fix*) FIXED+=("- ${c#*: }") ;;
+              *) CHANGED+=("- $c") ;;
+            esac
+          done < <(git log "$RANGE" --pretty=format:'%s' --no-merges | grep -v '^chore: bump version')
+
+          {
+            echo "## [${{ steps.version.outputs.version }}] - $(date -u +%Y-%m-%d)"
+            if [ ${#ADDED[@]} -gt 0 ]; then echo "" ; echo "### Added" ; printf '%s\n' "${ADDED[@]}"; fi
+            if [ ${#FIXED[@]} -gt 0 ]; then echo "" ; echo "### Fixed" ; printf '%s\n' "${FIXED[@]}"; fi
+            if [ ${#CHANGED[@]} -gt 0 ]; then echo "" ; echo "### Changed" ; printf '%s\n' "${CHANGED[@]}"; fi
+            echo ""
+          } > new_entry.md
+
+          if grep -q '^## \[' CHANGELOG.md; then
+            awk -v newfile=new_entry.md '
+              BEGIN { while ((getline line < newfile) > 0) entry = entry line "\n" }
+              !inserted && /^## \[/ { printf "%s", entry; inserted=1 }
+              { print }
+            ' CHANGELOG.md > CHANGELOG.md.tmp
+          else
+            cat CHANGELOG.md new_entry.md > CHANGELOG.md.tmp
+          fi
+          mv CHANGELOG.md.tmp CHANGELOG.md
+
       - name: Commit, tag and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add package.json
+          git add package.json CHANGELOG.md
           git commit -m "chore: bump version to ${{ steps.version.outputs.version }}"
           git tag "v${{ steps.version.outputs.version }}"
           git push origin HEAD:main
