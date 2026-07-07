@@ -19,7 +19,7 @@ namespace Wagenheimer.CloudSave.Editor
             EditorApplication.delayCall += () => CheckForUpdate(force: false);
         }
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Check for Updates")]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Check for Updates...", priority = 41)]
         static void CheckForUpdateMenuItem() => CheckForUpdate(force: true);
 
         static void CheckForUpdate(bool force)

@@ -6,7 +6,7 @@ namespace Wagenheimer.CloudSave.Editor
 {
     public class CloudSaveTester : EditorWindow
     {
-        [MenuItem("Tools/Cloud Save/Test Window", priority = 200)]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Open Test Window", priority = 1)]
         static void Open() => GetWindow<CloudSaveTester>("Cloud Save Test");
 
         static System.Reflection.MethodInfo _setLoading;

@@ -360,9 +360,9 @@ modify. After customising, right-click the prefab root →
 
 To regenerate from scratch (e.g. after breaking the layout):
 
-**Tools → Cloud Save → Setup UI Prefabs → CloudSaveUI**
+**Tools → Wagenheimer → Cloud Save → Setup UI Prefabs → Cloud Save UI**
 
-All three UI prefabs can be regenerated at once via **Tools → Cloud Save → Setup UI Prefabs → All**.
+All three UI prefabs can be regenerated at once via **Tools → Wagenheimer → Cloud Save → Setup UI Prefabs → All**.
 
 ### Serialized fields
 
@@ -405,7 +405,7 @@ SyncStatusUI.Create();
 
 The indicator automatically listens to `CloudSync.OnSyncStarted` and `CloudSync.OnSyncCompleted`. Call `SetStatus(SyncStatus)` for manual control.
 
-Custom prefab at `Assets/Resources/SyncStatusUI.prefab` — regenerate via **Tools → Cloud Save → Setup UI Prefabs → SyncStatusUI**.
+Custom prefab at `Assets/Resources/SyncStatusUI.prefab` — regenerate via **Tools → Wagenheimer → Cloud Save → Setup UI Prefabs → Sync Status UI**.
 
 ### Serialized fields
 
@@ -455,7 +455,7 @@ auth.Show();
 | `_closeButton` | `Button` | Close / "Not now" |
 | `_closeButtonText` | `TextMeshProUGUI` | Close label |
 
-Custom prefab at `Assets/Resources/CloudAuthUI.prefab` — regenerate via **Tools → Cloud Save → Setup UI Prefabs → CloudAuthUI**.
+Custom prefab at `Assets/Resources/CloudAuthUI.prefab` — regenerate via **Tools → Wagenheimer → Cloud Save → Setup UI Prefabs → Cloud Auth UI**.
 
 ---
 
@@ -535,7 +535,7 @@ The package ships a **Test Window** that lets you simulate sync operations, fire
 
 ### Open the Test Window
 
-**Tools → Cloud Save → Test Window**
+**Tools → Wagenheimer → Cloud Save → Test Window**
 
 ### What you can test
 

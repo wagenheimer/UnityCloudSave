@@ -10,7 +10,7 @@ namespace Wagenheimer.CloudSave.Editor
         const string SyncStatusUIPath = "Assets/Resources/SyncStatusUI.prefab";
         const string CloudAuthUIPath  = "Assets/Resources/CloudAuthUI.prefab";
 
-        [MenuItem("Tools/Cloud Save/Setup UI Prefabs/CloudSaveUI", priority = 100)]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Cloud Save UI", priority = 21)]
         static void GenerateCloudSaveUI()
         {
             var path = CloudSaveUIPath;
@@ -21,7 +21,7 @@ namespace Wagenheimer.CloudSave.Editor
             SavePrefab(go, path);
         }
 
-        [MenuItem("Tools/Cloud Save/Setup UI Prefabs/SyncStatusUI", priority = 101)]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Sync Status UI", priority = 22)]
         static void GenerateSyncStatusUI()
         {
             var path = SyncStatusUIPath;
@@ -32,7 +32,7 @@ namespace Wagenheimer.CloudSave.Editor
             SavePrefab(go, path);
         }
 
-        [MenuItem("Tools/Cloud Save/Setup UI Prefabs/CloudAuthUI", priority = 102)]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Cloud Auth UI", priority = 23)]
         static void GenerateCloudAuthUI()
         {
             var path = CloudAuthUIPath;
@@ -43,7 +43,7 @@ namespace Wagenheimer.CloudSave.Editor
             SavePrefab(go, path);
         }
 
-        [MenuItem("Tools/Cloud Save/Setup UI Prefabs/All", priority = 90)]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/All", priority = 20)]
         static void GenerateAll()
         {
             GenerateCloudSaveUI();
