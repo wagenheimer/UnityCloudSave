@@ -58,6 +58,16 @@ Regenerate all prefabs via: **Tools → Wagenheimer → Cloud Save → Setup UI 
 - Editor menu items unified under `Tools/Wagenheimer/Cloud Save/` since v4.3.3.
 - Package dependencies (auto-resolved for consumers): `com.unity.services.core` 1.12+, `com.unity.services.authentication` 2.7+, `com.unity.services.cloudsave` 3.0+, `com.unity.textmeshpro` 3.0.6+.
 
+## Critical: .meta Files
+
+Every file created in this repo **MUST** have a corresponding `.meta` file with a unique GUID. Without it, Unity logs `"has no meta file, but it's in an immutable folder"` and ignores the asset when the package is consumed.
+
+- `.cs` files → use `MonoImporter` template (see any existing `.cs.meta`)
+- `.md` files → use `TextScriptImporter` template (see `docs/INTEGRATION.md.meta`)
+- Generate GUIDs via `[guid]::NewGuid().ToString("N")` (PowerShell)
+
+**Always create `.meta` immediately after creating the asset file.**
+
 ## Commands
 
 There are no CLI build/test commands — this is a Unity package. Test via the Editor Test Window or manual playmode testing in a consumer project.
