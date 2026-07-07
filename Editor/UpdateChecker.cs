@@ -1,6 +1,5 @@
 using System;
 using UnityEditor;
-using UnityEditor.PackageManager;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -80,7 +79,7 @@ namespace Wagenheimer.CloudSave.Editor
 
         static string GetLocalVersion()
         {
-            var packageInfo = PackageInfo.FindForAssembly(typeof(UpdateChecker).Assembly);
+            var packageInfo = UnityEditor.PackageManager.PackageInfo.FindForAssembly(typeof(UpdateChecker).Assembly);
             return packageInfo?.version;
         }
 
