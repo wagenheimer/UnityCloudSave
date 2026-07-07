@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.4.0] - 2026-07-07
+
+### Added
+- show changelog excerpt and one-click update in the popup
+
 ## [4.3.3] - 2026-07-07
 
 ### Fixed
