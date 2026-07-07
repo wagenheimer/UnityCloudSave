@@ -17,6 +17,7 @@ Guia completo para ativar `com.wagenheimer.cloudsave` no seu projeto Unity.
 9. [Testar sem UGS](#9-testar-sem-ugs)
 10. [Checklist final](#10-checklist-final)
 11. [Reusable AI audit prompt](#11-reusable-ai-audit-prompt)
+12. [Logging](#12-logging--o-que-esperar-no-console)
 
 ---
 
@@ -33,7 +34,7 @@ Guia completo para ativar `com.wagenheimer.cloudsave` no seu projeto Unity.
 
 ### Via Package Manager
 1. **Window → Package Manager**
-2. **+ → Add package from git URL…**
+2. **+ → Add package from git URL...**
 3. Colar: `https://github.com/wagenheimer/UnityCloudSave.git`
 
 ### Via `manifest.json`
@@ -367,7 +368,7 @@ Todas as strings usam chaves como `"cloudsave.synced"`. Quando `Translate` é `n
 
 Simula sem precisar de internet ou credenciais:
 - Criar/destruir UIs
-- Disparar toasts (Synced, Error, Offline…)
+- Disparar toasts (Synced, Error, Offline...)
 - Mostrar diálogo de conflito
 - Simular eventos: `OnSyncStarted`, `OnSyncCompleted`, `OnLinked`
 - Ver estado de todas as propriedades
@@ -395,82 +396,82 @@ Simula sem precisar de internet ou credenciais:
 Copie e cole este prompt em qualquer IA para que ela analise o projeto e diga exatamente o que já foi feito e o que falta:
 
 ```text
-Você é um auditor de integração Unity Cloud Save. 
-Analise os arquivos do projeto e responda APENAS com uma tabela 
-marcando ✅ ou ❌ para cada item abaixo. 
-Não explique nada além da tabela.
+You are a Unity Cloud Save integration auditor.
+Analyze the project files and output ONLY a markdown table.
+Do NOT add explanations beyond the table.
 
-## Itens a verificar
+## Checks
 
-1. Package instalado:
-   - Verificar se "com.wagenheimer.cloudsave" aparece em 
-     Packages/manifest.json ou se a pasta Packages/com.wagenheimer.cloudsave existe.
-   - Procurar referência ao namespace "Wagenheimer.CloudSave" em 
-     qualquer arquivo .cs.
+1. **Package installed**
+   - Check if "com.wagenheimer.cloudsave" in Packages/manifest.json
+   - OR package directory exists at Packages/com.wagenheimer.cloudsave/
+   - OR any .cs file references "Wagenheimer.CloudSave"
 
-2. CloudSync.Configure:
-   - Procurar chamadas a "CloudSync.Configure" em arquivos .cs.
-   - Se encontrada, mostrar o argumento (ex: "meu_save").
+2. **CloudSync.Configure()**
+   - Search .cs files for "CloudSync.Configure"
+   - If found, note the key used
 
-3. CloudSync.InitAndSyncAsync:
-   - Procurar chamadas a "CloudSync.InitAndSyncAsync" em .cs.
+3. **CloudSync.InitAndSyncAsync()**
+   - Search .cs files for "CloudSync.InitAndSyncAsync"
 
-4. CloudSync.SaveAsync:
-   - Procurar chamadas a "CloudSync.SaveAsync" em .cs.
+4. **CloudSync.SaveAsync()**
+   - Search .cs files for "CloudSync.SaveAsync"
 
-5. Campo LastSaved:
-   - Procurar "long LastSaved" ou "LastSaved" em classes serializáveis 
-     (com [System.Serializable]) em .cs.
+5. **long LastSaved field**
+   - Search .cs files for "long LastSaved" in [System.Serializable] classes
 
-6. CloudSaveUI.Create:
-   - Procurar "CloudSaveUI.Create" em .cs.
+6. **[System.Serializable] class**
+   - Search .cs files for a [System.Serializable] class for save data
 
-7. SyncStatusUI.Create:
-   - Procurar "SyncStatusUI.Create" em .cs.
+7. **CloudSaveUI.Create()** — Search .cs for "CloudSaveUI.Create()"
 
-8. CloudAuthUI.Create:
-   - Procurar "CloudAuthUI.Create" em .cs.
+8. **SyncStatusUI.Create()** — Search .cs for "SyncStatusUI.Create()"
 
-9. Auth upgrade:
-   - Procurar "LinkGooglePlayGamesAsync", "LinkAppleGameCenterAsync", 
-     "LinkAppleAsync" em .cs.
+9. **CloudAuthUI.Create()** — Search .cs for "CloudAuthUI.Create()"
+   - Also check if "OnLinkRequested" is wired
 
-10. Projeto dashboard:
-    - Procurar arquivos "ProjectSettings.asset" e verificar se contêm 
-      "CloudSave" habilitado ou "Unity Services" configurado.
-    - Se não conseguir confirmar, marcar como "⚠️ (manual)".
+10. **Auth upgrade (UGS link calls)**
+    - Search .cs for "LinkGooglePlayGamesAsync", "LinkAppleGameCenterAsync", "LinkAppleAsync"
+    - Note which platform(s) are configured
 
-## Formato de saída
+11. **Android GPGS plugin**
+    - Check Packages/manifest.json for "com.google.play.games"
+    - Search Assets/ for GooglePlayGames DLLs or .cs references
+    - Search .cs for "PlayGamesPlatform" or "GooglePlayGames"
 
-| # | Item | Status | Detalhes |
-|---|------|--------|----------|
-| 1 | Package instalado | ✅ ou ❌ | (opcional: info extra) |
-| 2 | CloudSync.Configure | ✅ ou ❌ | "chave_usada" |
-| ... | ... | ... | ... |
+12. **iOS native bridge**
+    - Search Assets/Plugins/iOS/ for .mm files containing "GameCenter" or "GKLocalPlayer"
+    - Search .cs for "Apple.GameKit", "GKLocalPlayer", "FetchItemsForIdentityVerification"
+    - Search for "LinkAppleGameCenterAsync" or "LinkAppleAsync"
 
-Se algo for parcial (ex: Configure existe mas InitAndSync não), marque ❌ 
-e explique no "Detalhes".
+13. **Unity Services**
+    - Check ProjectSettings/ProjectSettings.asset for "CloudSave" or "Unity Gaming Services"
+
+## Output format
+
+| # | Item | Status | Files Found | Details/Action Needed |
+|---|------|--------|-------------|----------------------|
+| 1 | Package installed | ✅ / ❌ / ⚠️ | (paths) | (what to do) |
+| ... | ... | ... | ... | ... |
 ```
 
 ---
 
----
+## 12. Logging — o que esperar no console
 
-## 12. Logging � o que esperar no console
-
-O pacote loga tudo via Debug.Log / Debug.LogWarning. Procure no console por tags [CloudAuth], [CloudSync], [CloudSave].
+O pacote loga tudo via `Debug.Log` / `Debug.LogWarning`. Procure no console por tags `[CloudAuth]`, `[CloudSync]`, `[CloudSave]`.
 
 | Tag | Quando aparece | Exemplo |
 |-----|---------------|---------|
-| [CloudAuth] Ready | UGS initialized + anonymous sign-in OK | [CloudAuth] Ready. PlayerId=xxx Provider=Anonymous |
-| [CloudAuth] Init failed | Sem internet ou projeto n�o vinculado | [CloudAuth] Init failed: No internet connection |
-| [CloudAuth] Linked | Link com GPGS/GameCenter OK | [CloudAuth] Linked: provider=GooglePlayGames PlayerId=xxx |
-| [CloudAuth] SignedInExisting | Credencial j� vinculada a outra conta | [CloudAuth] SignedInExisting: provider=Apple |
-| [CloudAuth] Link* failed | Link recusado (token inv�lido, etc.) | [CloudAuth] LinkGooglePlayGames failed: ... |
-| [CloudSync] Saved to cloud | SaveAsync enviou dados com sucesso | [CloudSync] Saved to cloud. |
-| [CloudSync] Save failed | Upload falhou | [CloudSync] Save failed: ... |
-| [CloudSync] No cloud save found | InitAndSync � primeiro save (n�o existe nada na nuvem) | [CloudSync] No cloud save found yet. |
-| [CloudSync] InitAndSync error | Sync falhou completamente | [CloudSync] InitAndSync error: ... |
-| (Debug geral) | UIs, prefabs, etc. | [CloudSave] Prefab generated at ... |
+| `[CloudAuth] Ready` | UGS initialized + anonymous sign-in OK | `[CloudAuth] Ready. PlayerId=xxx Provider=Anonymous` |
+| `[CloudAuth] Init failed` | Sem internet ou projeto não vinculado | `[CloudAuth] Init failed: No internet connection` |
+| `[CloudAuth] Linked` | Link com GPGS/GameCenter OK | `[CloudAuth] Linked: provider=GooglePlayGames PlayerId=xxx` |
+| `[CloudAuth] SignedInExisting` | Credencial já vinculada a outra conta | `[CloudAuth] SignedInExisting: provider=Apple` |
+| `[CloudAuth] Link* failed` | Link recusado (token inválido, etc.) | `[CloudAuth] LinkGooglePlayGames failed: ...` |
+| `[CloudSync] Saved to cloud` | SaveAsync enviou dados com sucesso | `[CloudSync] Saved to cloud.` |
+| `[CloudSync] Save failed` | Upload falhou | `[CloudSync] Save failed: ...` |
+| `[CloudSync] No cloud save found` | InitAndSync — primeiro save (não existe nada na nuvem) | `[CloudSync] No cloud save found yet.` |
+| `[CloudSync] InitAndSync error` | Sync falhou completamente | `[CloudSync] InitAndSync error: ...` |
+| (Debug geral) | UIs, prefabs, etc. | `[CloudSave] Prefab generated at ...` |
 
-Se **n�o aparecer nenhum log** com [CloudAuth] ou [CloudSync], o c�digo n�o est� chamando as APIs do pacote � rode o **Audit** para confirmar.
+Se **não aparecer nenhum log** com `[CloudAuth]` ou `[CloudSync]`, o código não está chamando as APIs do pacote — rode o **Audit** (Tools → Wagenheimer → Cloud Save → Audit Integration) para confirmar.
