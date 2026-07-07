@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.6.0] - 2026-07-07
+
+### Added
+- redesign Integration Guide with modern card layout, copy buttons, and links
+
 ## [4.5.1] - 2026-07-07
 
 ### Fixed
