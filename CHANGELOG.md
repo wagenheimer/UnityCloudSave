@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.8.1] - 2026-07-08
+
+### Fixed
+- null guard for _detailText in UpdateDetail (old prefabs without the new field)
+
 ## [4.8.0] - 2026-07-08
 
 ### Added
