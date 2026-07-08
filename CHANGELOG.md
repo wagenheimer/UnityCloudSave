@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.7.5] - 2026-07-08
+
+### Fixed
+- SyncStatusUI stuck on Offline if created after sync completed — check LastResult
+
 ## [4.7.4] - 2026-07-08
 
 ### Changed
