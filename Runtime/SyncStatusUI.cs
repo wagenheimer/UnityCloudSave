@@ -87,7 +87,15 @@ namespace Wagenheimer.CloudSave
 
             DontDestroyOnLoad(gameObject);
 
-            SetStatus(SyncStatus.Offline);
+            // Se o sync já rodou antes da UI ser criada, usar o último resultado
+            if (CloudSync.LastResult.HasValue)
+            {
+                OnSyncCompleted(CloudSync.LastResult.Value);
+            }
+            else
+            {
+                SetStatus(SyncStatus.Offline);
+            }
         }
 
         void OnDestroy()
