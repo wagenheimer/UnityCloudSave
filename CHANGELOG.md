@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.7.4] - 2026-07-08
+
+### Changed
+- refactor: remove deprecated .mm bridge option, Apple.GameKit is the only supported iOS path
+
 ## [4.7.3] - 2026-07-07
 
 ### Changed
