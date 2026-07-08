@@ -83,7 +83,7 @@ namespace Wagenheimer.CloudSave.Editor
                 code: "// 1 \u2014 Autenticar no Google Play Games\nPlayGamesPlatform.Instance.Authenticate(status =>\n{\n    if (status != SignInStatus.Success) return;\n\n    // 2 \u2014 Solicitar server auth code\n    PlayGamesPlatform.Instance.RequestServerSideAccess(\n        false, serverAuthCode =>\n    {\n        // 3 \u2014 Vincular ao UGS\n        _ = CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);\n    });\n});");
 
             DrawCard(10, "Auth \u2014 iOS (optional)",
-                "PR\u00c9-REQUISITOS:\n  1. Apple Developer: enable Game Center on App ID\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: enable Apple Game Center\n  3. Install Apple.GameKit plugin OR create native .mm bridge\n\nCODE (3 steps):\nSTEP 1: GKLocalPlayer.Local\nSTEP 2: FetchItemsForIdentityVerificationSignatureAsync\nSTEP 3: CloudAuth.LinkAppleGameCenterAsync(...)");
+                "PR\u00c9-REQUISITOS:\n  1. Apple Developer: enable Game Center on App ID\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: enable Apple Game Center\n  3. Install Apple.GameKit (official Unity package)\n\nCODE (3 steps):\nSTEP 1: GKLocalPlayer.Local\nSTEP 2: FetchItemsForIdentityVerificationSignatureAsync\nSTEP 3: CloudAuth.LinkAppleGameCenterAsync(...)");
 
             DrawCard(11, "Test Without UGS",
                 "Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Open Test Window\nSimulate sync, toasts, conflicts and events \u2014 no internet needed.");

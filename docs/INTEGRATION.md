@@ -272,22 +272,53 @@ Antes de qualquer código de auth, você precisa avisar o UGS Authentication que
 
 > ⚠️ Se você **não ativar** o provedor no Dashboard, a chamada `AuthenticationService.Instance.LinkWithGooglePlayGamesAsync(code)` vai lançar um erro do tipo "provider not configured". O Audit do pacote inclui essa verificação.
 
-### 7.2 — Google Play Console (Android)
+### 7.2 — Google Cloud Console: criar a credencial do tipo certo
 
-Antes de escrever código Android, o app precisa estar configurado no Google Play Console:
+⚠️ **Atenção:** O tipo **Android** não funciona aqui. O Client ID do tipo Android não tem Client Secret e não serve para a validação no servidor (UGS). Você precisa criar uma credencial do tipo **Web Application**.
+
+Passo a passo no Google Cloud Console:
+
+1. Acessar [console.cloud.google.com](https://console.cloud.google.com/) → APIs & Services → **Credentials**
+2. Clicar em **Create Credentials** → **OAuth client ID**
+3. Em **Application type**, selecionar **Web application**
+4. Dar um nome (ex: "Unity Play Games Auth Bridge")
+5. **Authorized redirect URIs** — deixar em branco por enquanto
+6. Clicar em **Create**
+7. Copiar o **Client ID** gerado (e opcionalmente o **Client Secret**)
+
+Esse Web Client ID é o que vai no Dashboard da Unity.
+
+> **Por que Web e não Android?** O `AuthenticationService.Instance.LinkWithGooglePlayGamesAsync()` faz a validação do lado do servidor (Unity backend → Google). O tipo Android é só para autenticação direta no dispositivo. O tipo Web tem as chaves necessárias para a troca OAuth 2.0 server-to-server.
+
+### 7.3 — Unity Dashboard: colar o Client ID
+
+1. Acessar [dashboard.unity3d.com](https://dashboard.unity3d.com/) → seu projeto
+2. **Authentication** → **Sign-In Methods** → **Google Play Games**
+3. Ativar e colar o **Web client ID** (o que você criou na etapa anterior)
+
+### 7.4 — Google Play Console (opcional, para linked apps)
+
+Se o app já estiver cadastrado no Google Play:
 
 1. Acessar [play.google.com/console](https://play.google.com/console/) → seu app
 2. **Play Games Services** → **Setup & Management** → **Configuration**
-3. Criar ou vincular um **OAuth 2.0 Web client ID** (sim, Web — não Android):
-   - Vai para **Google Cloud Console** → **APIs & Services** → **Credentials**
-   - Criar um **OAuth 2.0 Web client** (tipo "Web application")
-   - Copiar o **Client ID** gerado
-4. Voltar ao **Unity Dashboard** → Authentication → Sign-In Methods → Google Play Games
-5. Colar o Client ID no campo **Web client ID**
-6. No Google Play Console, adicionar as contas de teste (se o app não estiver publicado)
-7. Na Unity: instalar o GPGS plugin via Package Manager (`com.google.play.games`)
+3. Vincular a credencial Web criada acima
+4. Adicionar contas de teste se o app não estiver publicado
 
-### 7.3 — Apple Developer (iOS)
+### 7.5 — Unity: instalar o plugin GPGS
+
+```json
+// Packages/manifest.json
+{
+  "dependencies": {
+    "com.google.play.games": "https://github.com/playgameservices/play-games-plugin-for-unity.git"
+  }
+}
+```
+
+Ou via **Window → Package Manager → + → Add package from git URL**.
+
+### 7.6 — Apple Developer (iOS)
 
 #### Game Center
 
@@ -305,7 +336,7 @@ Antes de escrever código Android, o app precisa estar configurado no Google Pla
 4. No **Unity Dashboard** → Authentication → Sign-In Methods → **Apple**
    - Colar o **Service ID** e **Redirect URL**
 
-### 7.4 — Android: Google Play Games (código)
+### 7.7 — Android: Google Play Games (código)
 
 Depois de configurar tudo acima, o código é o mesmo — mas agora funciona:
 
@@ -353,11 +384,10 @@ PlayGamesPlatform.Instance.Authenticate(status =>
 
 Ver README para exemplo completo com `SignedInExisting`.
 
-### 7.5 — iOS: Apple Game Center (código)
+### 7.8 — iOS: Apple Game Center (código)
 
-**Pré-requisito:** Você PRECISA de uma bridge nativa para chamar `GKLocalPlayer.generateIdentityVerificationSignature`. Duas opções:
+**Pré-requisito:** Instalar o pacote oficial Apple.GameKit (disponível no Package Manager).
 
-**Opção A — Apple.GameKit (recomendado):**
 ```csharp
 using Apple.GameKit;
 
@@ -379,10 +409,7 @@ var result = await CloudAuth.LinkAppleGameCenterAsync(
 Debug.Log($"Link result: {result.Status}");
 ```
 
-**Opção B — Bridge nativa `.mm` (sem Apple.GameKit):**
-Criar `Assets/Plugins/iOS/GameCenterBridge.mm` (código no README.md).
-
-### 7.6 — iOS: Sign in with Apple (código)
+### 7.9 — iOS: Sign in with Apple (código)
 
 ```csharp
 // PASSO 1 — Autenticar com Apple
@@ -392,7 +419,7 @@ var credential = await AppleAuthManager.LoginWithAppleId(...);
 var result = await CloudAuth.LinkAppleAsync(credential.IdentityToken);
 ```
 
-### 7.7 — Eventos de auth
+### 7.10 — Eventos de auth
 
 ```csharp
 CloudAuth.OnLinked += provider => Debug.Log($"Linked: {provider}");

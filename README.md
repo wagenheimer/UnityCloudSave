@@ -18,8 +18,7 @@ Drop-in `byte[]` API — you handle serialization, this package handles the clou
 - Unity 2021.3+
 - A [Unity Gaming Services](https://dashboard.unity3d.com/) project with **Cloud Save** enabled
 - **Android upgrade (optional):** Google Play Games Plugin for Unity (OpenUPM `com.google.play.games`)
-- **iOS upgrade (optional):** A native bridge for `GKLocalPlayer.generateIdentityVerificationSignature`  
-  (e.g. [Apple.GameKit](https://github.com/Apple/unityplugins) or a custom `.mm` plugin)
+- **iOS upgrade (optional):** [Apple.GameKit](https://github.com/Apple/unityplugins) (official Unity package)
 
 ---
 
@@ -162,12 +161,8 @@ After upgrading, the save is accessible from **any device** where the player sig
 
 ## Auth: Upgrade to Apple Game Center (iOS)
 
-Game Center auth uses Apple's identity verification signature — you need a native bridge to
-call `GKLocalPlayer.generateIdentityVerificationSignature` from C#.
-
-### Option A — Apple.GameKit Unity Plugin (recommended)
-
-Install [Apple.GameKit](https://github.com/Apple/unityplugins) and use:
+Game Center auth uses Apple's identity verification signature via the official
+[Apple.GameKit](https://github.com/Apple/unityplugins) Unity package.
 
 ```csharp
 var player = GKLocalPlayer.Local;
@@ -180,45 +175,6 @@ var result = await CloudAuth.LinkAppleGameCenterAsync(
     salt         : Convert.ToBase64String(salt),
     timestamp    : timestamp,
     teamPlayerId : player.TeamPlayerId);
-```
-
-### Option B — Custom native plugin (`.mm`)
-
-Create `Assets/Plugins/iOS/GameCenterBridge.mm`:
-
-```objc
-extern "C" void GC_GetIdentitySignature(
-    void (*callback)(const char* pubKeyUrl, const char* sig, const char* salt,
-                     uint64_t ts, const char* teamId))
-{
-    GKLocalPlayer* lp = [GKLocalPlayer localPlayer];
-    [lp generateIdentityVerificationSignatureWithCompletionHandler:
-        ^(NSURL* pubKeyURL, NSData* signature, NSData* salt, uint64_t timestamp, NSError* error)
-    {
-        if (error) { callback("", "", "", 0, ""); return; }
-        NSString* sig64  = [signature base64EncodedStringWithOptions:0];
-        NSString* salt64 = [salt base64EncodedStringWithOptions:0];
-        callback(pubKeyURL.absoluteString.UTF8String,
-                 sig64.UTF8String, salt64.UTF8String,
-                 timestamp, lp.teamPlayerID.UTF8String);
-    }];
-}
-```
-
-Then from C# (inside `#if UNITY_IOS`):
-
-```csharp
-[DllImport("__Internal")]
-static extern void GC_GetIdentitySignature(
-    Action<string, string, string, ulong, string> callback);
-
-// Call after Social.localUser.Authenticate succeeds:
-GC_GetIdentitySignature(async (pubKeyUrl, sig, salt, ts, teamId) =>
-{
-    var result = await CloudAuth.LinkAppleGameCenterAsync(pubKeyUrl, sig, salt, ts, teamId);
-    if (result.Status == CloudLinkStatus.SignedInExisting)
-        await CloudSync.InitAndSyncAsync(SaveData.LastSaved, ApplyCloudSave);
-});
 ```
 
 ---

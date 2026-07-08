@@ -507,38 +507,10 @@ namespace Wagenheimer.CloudSave.Editor
                 matches);
         }
 
-        /// Checks for iOS native bridge (.mm/.swift with GameCenter) and Apple.GameKit references.
+        /// Checks for Apple.GameKit references (official Unity package, only supported option).
         static AuditItem CheckiOSAuth()
         {
             var matches = new List<string>();
-
-            var pluginDir = new DirectoryInfo(Path.GetFullPath("Assets"));
-            if (pluginDir.Exists)
-            {
-                var mmFiles = pluginDir.GetFiles("*.mm", SearchOption.AllDirectories);
-                foreach (var f in mmFiles)
-                {
-                    try
-                    {
-                        var text = File.ReadAllText(f.FullName);
-                        if (text.Contains("GameCenter") || text.Contains("generateIdentityVerificationSignature"))
-                            matches.Add("Native bridge: " + GetRelativePath(f.FullName));
-                    }
-                    catch { }
-                }
-
-                var swiftFiles = pluginDir.GetFiles("*.swift", SearchOption.AllDirectories);
-                foreach (var f in swiftFiles)
-                {
-                    try
-                    {
-                        var text = File.ReadAllText(f.FullName);
-                        if (text.Contains("GameCenter") || text.Contains("GKLocalPlayer"))
-                            matches.Add("Swift bridge: " + GetRelativePath(f.FullName));
-                    }
-                    catch { }
-                }
-            }
 
             var csMatches = FindInCsFiles("Apple\\.GameKit|GKLocalPlayer|FetchItemsForIdentityVerification", true);
             matches.AddRange(csMatches.Take(3));
@@ -548,14 +520,14 @@ namespace Wagenheimer.CloudSave.Editor
 
             if (matches.Count > 0)
                 return Pass("iOS (Game Center / Apple) auth setup detected",
-                    "Native bridge or Apple.GameKit reference found.", matches);
+                    "Apple.GameKit reference found.", matches);
 
             return Info("iOS Game Center auth NOT detected",
                 "Not required. Without Game Center: saves stay on device (anonymous).\n" +
                 "To enable cross-device saves:\n" +
                 "  1. Apple Developer: enable Game Center on App ID\n" +
                 "  2. Dashboard \u2192 Authentication \u2192 Sign-In Methods: enable Apple Game Center\n" +
-                "  3. Install Apple.GameKit plugin or create a .mm bridge\n" +
+                "  3. Install Apple.GameKit (official Unity package)\n" +
                 "  4. Authenticate with Game Center (GKLocalPlayer)\n" +
                 "  5. Get identity verification signature\n" +
                 "  6. CloudAuth.LinkAppleGameCenterAsync(..., signature, ...)",
@@ -678,10 +650,10 @@ Do NOT add explanations beyond the table.
     - Search Assets/ for GooglePlayGames DLLs or .cs references
     - Search .cs for ""PlayGamesPlatform"" or ""GooglePlayGames""
 
-12. **iOS native bridge**
-    - Search Assets/Plugins/iOS/ for .mm files containing ""GameCenter"" or ""GKLocalPlayer""
+12. **iOS (Apple.GameKit)**
     - Search .cs for ""Apple.GameKit"", ""GKLocalPlayer"", ""FetchItemsForIdentityVerification""
     - Search for ""LinkAppleGameCenterAsync"" or ""LinkAppleAsync""
+    - (Note: Apple.GameKit is the official Unity package — this is the only supported option)
 
 13. **Unity Services**
     - Check ProjectSettings/ProjectSettings.asset for ""CloudSave"" or ""Unity Gaming Services""
