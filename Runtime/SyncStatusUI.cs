@@ -12,6 +12,7 @@ namespace Wagenheimer.CloudSave
         [SerializeField] GameObject _root;
         [SerializeField] Image _icon;
         [SerializeField] TextMeshProUGUI _statusText;
+        [SerializeField] TextMeshProUGUI _detailText;
         [SerializeField] TextMeshProUGUI _lastSyncText;
 
         [Header("Layout")]
@@ -54,6 +55,17 @@ namespace Wagenheimer.CloudSave
 
             if (status == SyncStatus.Syncing)
                 _lastSyncText.gameObject.SetActive(false);
+
+            UpdateDetail();
+        }
+
+        void UpdateDetail()
+        {
+            var playerId = CloudAuth.IsReady ? CloudAuth.PlayerId : "not initialized";
+            var provider = CloudAuth.IsReady ? CloudAuth.Provider.ToString() : "-";
+            var syncResult = CloudSync.LastResult?.ToString() ?? "never synced";
+            _detailText.text = $"Player: {playerId}\nAuth: {provider} | Sync: {syncResult}";
+            _detailText.gameObject.SetActive(true);
         }
 
         public void SetLastSync(DateTime time)
@@ -203,25 +215,31 @@ namespace Wagenheimer.CloudSave
         {
             var canvas = MakeCanvas("SyncStatusCanvas", _sortOrder);
             _root = MakePanel(canvas.gameObject, "Root",
-                new Color(0.05f, 0.05f, 0.05f, 0.70f),
-                new Vector2(0.80f, 0.02f), new Vector2(0.98f, 0.07f),
+                new Color(0.05f, 0.05f, 0.05f, 0.75f),
+                new Vector2(0.70f, 0.00f), new Vector2(0.98f, 0.10f),
                 Vector2.zero, Vector2.zero);
 
-            var container = MakePanel(_root, "Container", Color.clear,
-                Vector2.zero, Vector2.one, new Vector2(8, 4), new Vector2(-8, -4));
+            var row = MakePanel(_root, "Row", Color.clear,
+                new Vector2(0f, 0.40f), new Vector2(1f, 1f),
+                new Vector2(8, 2), new Vector2(-8, -2));
 
-            _icon = MakeIcon(container);
+            _icon = MakeIcon(row);
 
-            _statusText = MakeText(container, "StatusText", CloudSaveLocale.SyncStatusText(SyncStatus.Offline),
-                _colorOffline, 22, TextAlignmentOptions.Left,
-                new Vector2(0.08f, 0f), new Vector2(0.65f, 1f),
+            _statusText = MakeText(row, "StatusText", CloudSaveLocale.SyncStatusText(SyncStatus.Offline),
+                _colorOffline, 20, TextAlignmentOptions.Left,
+                new Vector2(0.08f, 0f), new Vector2(0.60f, 1f),
                 Vector2.zero, Vector2.zero);
 
-            _lastSyncText = MakeText(container, "LastSync", "",
-                new Color(0.60f, 0.60f, 0.60f), 18, TextAlignmentOptions.Right,
-                new Vector2(0.65f, 0f), new Vector2(1f, 1f),
+            _lastSyncText = MakeText(row, "LastSync", "",
+                new Color(0.60f, 0.60f, 0.60f), 16, TextAlignmentOptions.Right,
+                new Vector2(0.60f, 0f), new Vector2(1f, 1f),
                 Vector2.zero, Vector2.zero);
             _lastSyncText.gameObject.SetActive(false);
+
+            _detailText = MakeText(_root, "Detail", "",
+                new Color(0.55f, 0.55f, 0.60f), 14, TextAlignmentOptions.Left,
+                new Vector2(0f, 0f), new Vector2(1f, 0.40f),
+                new Vector2(10, 2), new Vector2(-10, 0));
         }
 
         Image MakeIcon(GameObject parent)
@@ -288,6 +306,7 @@ namespace Wagenheimer.CloudSave
             _root = FindChild("Root");
             _icon = FindChild("Icon")?.GetComponent<Image>();
             _statusText = FindChild("StatusText")?.GetComponent<TextMeshProUGUI>();
+            _detailText = FindChild("Detail")?.GetComponent<TextMeshProUGUI>();
             _lastSyncText = FindChild("LastSync")?.GetComponent<TextMeshProUGUI>();
             UnityEditor.EditorUtility.SetDirty(this);
         }
