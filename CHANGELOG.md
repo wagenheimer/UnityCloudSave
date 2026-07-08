@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.8.0] - 2026-07-08
+
+### Added
+- add detail tooltip to SyncStatusUI showing PlayerId, Provider, and last sync result
+
 ## [4.7.5] - 2026-07-08
 
 ### Fixed
