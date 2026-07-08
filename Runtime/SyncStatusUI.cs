@@ -61,6 +61,7 @@ namespace Wagenheimer.CloudSave
 
         void UpdateDetail()
         {
+            if (_detailText == null) return;
             var playerId = CloudAuth.IsReady ? CloudAuth.PlayerId : "not initialized";
             var provider = CloudAuth.IsReady ? CloudAuth.Provider.ToString() : "-";
             var syncResult = CloudSync.LastResult?.ToString() ?? "never synced";
