@@ -8,6 +8,7 @@ namespace Wagenheimer.CloudSave.Editor
     [InitializeOnLoad]
     internal static class UpdateChecker
     {
+        const string PackageDisplayName = "Cloud Save";
         internal const string GitUrl = "https://github.com/wagenheimer/UnityCloudSave.git";
         const string PackageJsonUrl = "https://raw.githubusercontent.com/wagenheimer/UnityCloudSave/main/package.json";
         const string ChangelogUrl = "https://raw.githubusercontent.com/wagenheimer/UnityCloudSave/main/CHANGELOG.md";
@@ -51,6 +52,8 @@ namespace Wagenheimer.CloudSave.Editor
             if (request.result != UnityWebRequest.Result.Success)
             {
                 Debug.Log($"[CloudSave] Update check failed: {request.error}");
+                if (force)
+                    EditorUtility.DisplayDialog(PackageDisplayName, $"Falha ao verificar atualizações:\n{request.error}", "OK");
                 request.Dispose();
                 return;
             }
@@ -68,12 +71,28 @@ namespace Wagenheimer.CloudSave.Editor
             request.Dispose();
 
             var localVersion = GetLocalVersion();
-            if (string.IsNullOrEmpty(remoteVersion) || string.IsNullOrEmpty(localVersion))
+            if (string.IsNullOrEmpty(remoteVersion))
+            {
+                Debug.Log("[CloudSave] Update check failed: remote package.json has no version field.");
+                if (force)
+                    EditorUtility.DisplayDialog(PackageDisplayName, "Falha ao verificar atualizações: o package.json remoto não tem campo de versão.", "OK");
                 return;
+            }
+
+            if (string.IsNullOrEmpty(localVersion))
+            {
+                Debug.Log("[CloudSave] Update check failed: could not resolve the installed package version " +
+                    "(PackageInfo.FindForAssembly returned null for this assembly).");
+                if (force)
+                    EditorUtility.DisplayDialog(PackageDisplayName, "Falha ao verificar atualizações: não foi possível identificar a versão instalada deste pacote.", "OK");
+                return;
+            }
 
             if (!IsNewer(remoteVersion, localVersion))
             {
                 Debug.Log($"[CloudSave] Up to date (installed: {localVersion}).");
+                if (force)
+                    EditorUtility.DisplayDialog(PackageDisplayName, $"Você já está usando a versão mais recente ({localVersion}).", "OK");
                 return;
             }
 
