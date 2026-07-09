@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.9.0] - 2026-07-09
+
+### Added
+- show dialog on manual check (up to date / errors), redesign update popup
+
 ## [4.8.1] - 2026-07-08
 
 ### Fixed
