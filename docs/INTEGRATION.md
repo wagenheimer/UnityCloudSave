@@ -1,41 +1,41 @@
 # CloudSave Integration Guide
 
-Guia completo para ativar `com.wagenheimer.cloudsave` no seu projeto Unity.
+Complete guide to enable `com.wagenheimer.cloudsave` in your Unity project.
 
 ---
 
-## Índice
+## Index
 
-1. [Pré-requisitos](#1-pré-requisitos)
-2. [Instalação do Package](#2-instalação-do-package)
-3. [Unity Dashboard — Cloud Save habilitado](#3-unity-dashboard--cloud-save-habilitado)
-4. [Projeto vinculado aos Unity Services](#4-projeto-vinculado-aos-unity-services)
-5. [Código — Setup mínimo](#5-código--setup-mínimo)
-6. [UIs (recomendado)](#6-uis-recomendado)
-7. [Auth upgrade (Android/iOS)](#7-auth-upgrade-androidios)
-8. [Localização](#8-localização)
-9. [Testar sem UGS](#9-testar-sem-ugs)
-10. [Checklist final](#10-checklist-final)
-11. [Reusable AI audit prompt](#11-reusable-ai-audit-prompt)
-12. [Logging](#12-logging--o-que-esperar-no-console)
+1. [Prerequisites](#1-prerequisites)
+2. [Package Installation](#2-package-installation)
+3. [Unity Dashboard — Cloud Save Enabled](#3-unity-dashboard--cloud-save-enabled)
+4. [Project Linked to Unity Services](#4-project-linked-to-unity-services)
+5. [Code — Minimal Setup](#5-code--minimal-setup)
+6. [UIs (Recommended)](#6-uis-recommended)
+7. [Auth Upgrade (Android/iOS)](#7-auth-upgrade-androidios)
+8. [Localization](#8-localization)
+9. [Testing Without UGS](#9-testing-without-ugs)
+10. [Final Checklist](#10-final-checklist)
+11. [Reusable AI Audit Prompt](#11-reusable-ai-audit-prompt)
+12. [Logging — What to Expect in the Console](#12-logging--what-to-expect-in-the-console)
 
 ---
 
-## 1. Pré-requisitos
+## 1. Prerequisites
 
 - Unity **2021.3+**
-- Um projeto no [Unity Dashboard](https://dashboard.unity3d.com/)
-- **Opcional (Android):** Google Play Games Plugin for Unity — `com.google.play.games`
-- **Opcional (iOS):** Apple.GameKit ou bridge nativa para GKLocalPlayer
+- A project in the [Unity Dashboard](https://dashboard.unity3d.com/)
+- **Optional (Android):** Google Play Games Plugin for Unity — `com.google.play.games`
+- **Optional (iOS):** Apple.GameKit or a native bridge to GKLocalPlayer
 
 ---
 
-## 2. Instalação do Package
+## 2. Package Installation
 
 ### Via Package Manager
 1. **Window → Package Manager**
 2. **+ → Add package from git URL...**
-3. Colar: `https://github.com/wagenheimer/UnityCloudSave.git`
+3. Paste: `https://github.com/wagenheimer/UnityCloudSave.git`
 
 ### Via `manifest.json`
 ```json
@@ -46,7 +46,7 @@ Guia completo para ativar `com.wagenheimer.cloudsave` no seu projeto Unity.
 }
 ```
 
-Dependências resolvem automaticamente:
+Dependencies resolve automatically:
 - `com.unity.services.core` 1.12+
 - `com.unity.services.authentication` 2.7+
 - `com.unity.services.cloudsave` 3.0+
@@ -54,109 +54,109 @@ Dependências resolvem automaticamente:
 
 ---
 
-## 3. Unity Dashboard — Cloud Save habilitado
+## 3. Unity Dashboard — Cloud Save Enabled
 
-1. Acessar [dashboard.unity3d.com](https://dashboard.unity3d.com/)
-2. Selecionar o projeto
+1. Access [dashboard.unity3d.com](https://dashboard.unity3d.com/)
+2. Select your project
 3. **Cloud Save** → **Enable**
 
 ---
 
-## 4. Projeto vinculado aos Unity Services
+## 4. Project Linked to Unity Services
 
-1. No Unity: **Edit → Project Settings → Services**
-2. Fazer login com a conta Unity
-3. Selecionar o projeto (mesmo do Dashboard)
-4. Verificar se aparece **Linked** com o projeto correto
+1. In Unity: **Edit → Project Settings → Services**
+2. Log in with your Unity account
+3. Select the project (same as the Dashboard)
+4. Verify that it appears as **Linked** with the correct project
 
-> Se não aparecer, usar **Window → Unity Gaming Services** e seguir o fluxo de link.
+> If it does not appear, go to **Window → Unity Gaming Services** and follow the link flow.
 
 ---
 
-## 5. Código — Setup mínimo
+## 5. Code — Minimal Setup
 
-Tudo gira em torno de **duas classes estáticas**: `CloudSync` e `CloudAuth`.
+Everything revolves around **two static classes**: `CloudSync` and `CloudAuth`.
 
-### 5.1 — Seu SaveData precisa de um timestamp
+### 5.1 — Your SaveData Needs a Timestamp
 
 ```csharp
 [System.Serializable]
-public class MeuSaveData
+public class MySaveData
 {
-    public long LastSaved;  // ← OBRIGATÓRIO — usado pra decidir versão mais nova
-    public int Moedas;
-    public int Fase;
-    // ... seus outros campos
+    public long LastSaved;  // ← REQUIRED — used to decide the newest version
+    public int Coins;
+    public int Stage;
+    // ... your other fields
 }
 ```
 
-### 5.2 — Startup (uma vez, no primeiro loading)
+### 5.2 — Startup (Once, on First Loading Screen)
 
 ```csharp
 using Wagenheimer.CloudSave;
 
 public class GameManager : MonoBehaviour
 {
-    private MeuSaveData _saveData;
+    private MySaveData _saveData;
 
     void Start()
     {
-        // 1. Configurar a chave do cloud (uma vez)
-        CloudSync.Configure("meu_jogo_save");
+        // 1. Configure the cloud key (once)
+        CloudSync.Configure("my_game_save");
 
-        // 2. Iniciar sync (fire-and-forget)
-        _ = CloudSync.InitAndSyncAsync(_saveData.LastSaved, AplicarCloudSave);
+        // 2. Start sync (fire-and-forget)
+        _ = CloudSync.InitAndSyncAsync(_saveData.LastSaved, ApplyCloudSave);
 
-        // 3. (Opcional) Criar UIs
+        // 3. (Optional) Create UIs
         CloudSaveUI.Create();
         SyncStatusUI.Create();
     }
 
-    private void AplicarCloudSave(byte[] cloudBytes)
+    private void ApplyCloudSave(byte[] cloudBytes)
     {
-        // Chamado quando o cloud save é mais novo que o local
+        // Called when the cloud save is newer than the local one
         var json = System.Text.Encoding.UTF8.GetString(cloudBytes);
-        _saveData = JsonUtility.FromJson<MeuSaveData>(json);
-        // Aplicar ao jogo...
+        _saveData = JsonUtility.FromJson<MySaveData>(json);
+        // Apply to the game...
     }
 }
 ```
 
-### 5.3 — Salvar (toda vez que gravar localmente)
+### 5.3 — Save (Every Time You Save Locally)
 
 ```csharp
-public void SalvarJogo()
+public void SaveGame()
 {
     _saveData.LastSaved = System.DateTime.UtcNow.Ticks;
     string json = JsonUtility.ToJson(_saveData);
     byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);
     System.IO.File.WriteAllBytes(Application.persistentDataPath + "/save.json", bytes);
 
-    // Enviar pro cloud (fire-and-forget)
+    // Send to cloud (fire-and-forget)
     _ = CloudSync.SaveAsync(bytes, _saveData.LastSaved);
 }
 ```
 
-### 5.4 — Carregar (antes de iniciar sync)
+### 5.4 — Load (Before Starting Sync)
 
 ```csharp
-public void CarregarJogo()
+public void LoadGame()
 {
     string path = Application.persistentDataPath + "/save.json";
     if (System.IO.File.Exists(path))
     {
         byte[] bytes = System.IO.File.ReadAllBytes(path);
         string json = System.Text.Encoding.UTF8.GetString(bytes);
-        _saveData = JsonUtility.FromJson<MeuSaveData>(json);
+        _saveData = JsonUtility.FromJson<MySaveData>(json);
     }
     else
     {
-        _saveData = new MeuSaveData();
+        _saveData = new MySaveData();
     }
 }
 ```
 
-### Exemplo completo (Startup)
+### Complete Example (Startup)
 
 ```csharp
 using UnityEngine;
@@ -164,39 +164,39 @@ using Wagenheimer.CloudSave;
 
 public class GameManager : MonoBehaviour
 {
-    [SerializeField] private MeuSaveData _saveData = new();
+    [SerializeField] private MySaveData _saveData = new();
 
     void Awake()
     {
-        CarregarLocal();
-        CloudSync.Configure("meu_jogo");
+        LoadLocal();
+        CloudSync.Configure("my_game");
     }
 
     void Start()
     {
         CloudSaveUI.Create();
         SyncStatusUI.Create();
-        _ = CloudSync.InitAndSyncAsync(_saveData.LastSaved, AplicarCloudSave);
+        _ = CloudSync.InitAndSyncAsync(_saveData.LastSaved, ApplyCloudSave);
     }
 
-    void CarregarLocal()
+    void LoadLocal()
     {
         var path = Application.persistentDataPath + "/save.json";
         if (System.IO.File.Exists(path))
         {
             var json = System.IO.File.ReadAllText(path);
-            _saveData = JsonUtility.FromJson<MeuSaveData>(json);
+            _saveData = JsonUtility.FromJson<MySaveData>(json);
         }
     }
 
-    void AplicarCloudSave(byte[] bytes)
+    void ApplyCloudSave(byte[] bytes)
     {
         var json = System.Text.Encoding.UTF8.GetString(bytes);
-        _saveData = JsonUtility.FromJson<MeuSaveData>(json);
-        Debug.Log("Cloud save aplicado!");
+        _saveData = JsonUtility.FromJson<MySaveData>(json);
+        Debug.Log("Cloud save applied!");
     }
 
-    public void Salvar()
+    public void Save()
     {
         _saveData.LastSaved = System.DateTime.UtcNow.Ticks;
         var json = JsonUtility.ToJson(_saveData);
@@ -210,29 +210,29 @@ public class GameManager : MonoBehaviour
 
 ---
 
-## 6. UIs (recomendado)
+## 6. UIs (Recommended)
 
 ### CloudSaveUI
 
-Mostra loading overlay, toasts (synced/offline/error), diálogo de conflito.
+Shows loading overlay, toasts (synced/offline/error), and conflict dialogs.
 
 ```csharp
-CloudSaveUI.Create();  // idempotente — retorna a singleton
+CloudSaveUI.Create();  // Idempotent — returns the singleton
 ```
 
 ### SyncStatusUI
 
-Indicador persistente no canto inferior direito.
+Persistent indicator in the bottom right corner.
 
 ```csharp
-SyncStatusUI.Create();  // idempotente
+SyncStatusUI.Create();  // Idempotent
 ```
 
-Estados: `Synced` (verde), `Syncing` (azul), `Offline` (amarelo), `Error` (vermelho).
+States: `Synced` (green), `Syncing` (blue), `Offline` (yellow), `Error` (red).
 
 ### CloudAuthUI
 
-Diálogo modal para link de conta (GPGS/Game Center).
+Modal dialog for account linking (GPGS/Game Center).
 
 ```csharp
 var auth = CloudAuthUI.Create();
@@ -244,68 +244,71 @@ auth.OnLinkRequested += async () =>
 auth.Show();
 ```
 
-### Regenerar prefabs (se mexer no layout)
+### Regenerating Prefabs (If Modifying Layout)
 
 **Tools → Wagenheimer → Cloud Save → Setup UI Prefabs → All**
 
 ---
 
-## 7. Auth upgrade (Android/iOS)
+## 7. Auth Upgrade (Android/iOS)
 
-> **IMPORTANTE:** `CloudAuth.Link*` NÃO faz a autenticação com a plataforma.
-> Você precisa autenticar no GPGS / Game Center / Apple **primeiro** e só depois passar os tokens.
+> [!IMPORTANT]
+> `CloudAuth.Link*` does NOT perform authentication with the platform.
+> You must authenticate with GPGS / Game Center / Apple **first** and only then pass the tokens.
 
-### 7.1 — Unity Dashboard: configurar os Sign-In Methods
+### 7.1 — Unity Dashboard: Configure Sign-In Methods
 
-Antes de qualquer código de auth, você precisa avisar o UGS Authentication que vai usar Google Play Games / Apple como provedores de login.
+Before writing any auth code, you need to configure UGS Authentication to use Google Play Games / Apple as login providers.
 
-**Passo a passo:**
+**Step-by-step:**
 
-1. Acessar [dashboard.unity3d.com](https://dashboard.unity3d.com/) → seu projeto
-2. **Authentication** (no menu lateral) → **Sign-In Methods**
-3. **Anonymous** — já vem ativado por padrão ✔️
-4. **Google Play Games** — clicar para ativar
-   - Campo **Web client ID**: colar o OAuth 2.0 Web client ID do Google Play Console (explicado na [seção 7.2](#72-google-play-console-android))
-5. **Apple Game Center** — ativar (iOS, sem precisar de configuração extra no Dashboard)
-6. **Apple** — ativar (Sign in with Apple, iOS)
-   - Campos: **Service ID** + **Redirect URL** — obter no Apple Developer
+1. Access [dashboard.unity3d.com](https://dashboard.unity3d.com/) → your project
+2. **Authentication** (in the side menu) → **Sign-In Methods**
+3. **Anonymous** — enabled by default ✔
+4. **Google Play Games** — click to enable
+   - **Web client ID** field: paste the OAuth 2.0 Web client ID from Google Play Console (explained in [Section 7.2](#72-google-cloud-console-creating-the-right-credential-type))
+5. **Apple Game Center** — enable (iOS, no extra configuration needed on Dashboard)
+6. **Apple** — enable (Sign in with Apple, iOS)
+   - Fields: **Service ID** + **Redirect URL** — obtain from Apple Developer Portal
 
-> ⚠️ Se você **não ativar** o provedor no Dashboard, a chamada `AuthenticationService.Instance.LinkWithGooglePlayGamesAsync(code)` vai lançar um erro do tipo "provider not configured". O Audit do pacote inclui essa verificação.
+> [!WARNING]
+> If you **do not enable** the provider in the Dashboard, the call `AuthenticationService.Instance.LinkWithGooglePlayGamesAsync(code)` will throw a "provider not configured" error. The package integration audit includes this verification.
 
-### 7.2 — Google Cloud Console: criar a credencial do tipo certo
+### 7.2 — Google Cloud Console: Creating the Right Credential Type
 
-⚠️ **Atenção:** O tipo **Android** não funciona aqui. O Client ID do tipo Android não tem Client Secret e não serve para a validação no servidor (UGS). Você precisa criar uma credencial do tipo **Web Application**.
+> [!WARNING]
+> The **Android** credential type does not work here. Android Client IDs do not have Client Secrets and cannot be used for server-side validation (UGS). You must create a **Web application** credential type.
 
-Passo a passo no Google Cloud Console:
+Step-by-step in the Google Cloud Console:
 
-1. Acessar [console.cloud.google.com](https://console.cloud.google.com/) → APIs & Services → **Credentials**
-2. Clicar em **Create Credentials** → **OAuth client ID**
-3. Em **Application type**, selecionar **Web application**
-4. Dar um nome (ex: "Unity Play Games Auth Bridge")
-5. **Authorized redirect URIs** — deixar em branco por enquanto
-6. Clicar em **Create**
-7. Copiar o **Client ID** gerado (e opcionalmente o **Client Secret**)
+1. Access [console.cloud.google.com](https://console.cloud.google.com/) → APIs & Services → **Credentials**
+2. Click **Create Credentials** → **OAuth client ID**
+3. Under **Application type**, select **Web application**
+4. Provide a name (e.g., "Unity Play Games Auth Bridge")
+5. **Authorized redirect URIs** — leave blank for now
+6. Click **Create**
+7. Copy the generated **Client ID** (and optionally the **Client Secret**)
 
-Esse Web Client ID é o que vai no Dashboard da Unity.
+This Web Client ID is what you will paste into the Unity Dashboard.
 
-> **Por que Web e não Android?** O `AuthenticationService.Instance.LinkWithGooglePlayGamesAsync()` faz a validação do lado do servidor (Unity backend → Google). O tipo Android é só para autenticação direta no dispositivo. O tipo Web tem as chaves necessárias para a troca OAuth 2.0 server-to-server.
+> **Why Web and not Android?** The `AuthenticationService.Instance.LinkWithGooglePlayGamesAsync()` method performs server-side validation (Unity backend → Google). The Android type is only for direct device-level authentication. The Web type contains the required keys for OAuth 2.0 server-to-server exchange.
 
-### 7.3 — Unity Dashboard: colar o Client ID
+### 7.3 — Unity Dashboard: Paste the Client ID
 
-1. Acessar [dashboard.unity3d.com](https://dashboard.unity3d.com/) → seu projeto
+1. Access [dashboard.unity3d.com](https://dashboard.unity3d.com/) → your project
 2. **Authentication** → **Sign-In Methods** → **Google Play Games**
-3. Ativar e colar o **Web client ID** (o que você criou na etapa anterior)
+3. Enable and paste the **Web client ID** (the one created in the previous step)
 
-### 7.4 — Google Play Console (opcional, para linked apps)
+### 7.4 — Google Play Console (Optional, for Linked Apps)
 
-Se o app já estiver cadastrado no Google Play:
+If the app is already registered in Google Play:
 
-1. Acessar [play.google.com/console](https://play.google.com/console/) → seu app
+1. Access [play.google.com/console](https://play.google.com/console/) → your app
 2. **Play Games Services** → **Setup & Management** → **Configuration**
-3. Vincular a credencial Web criada acima
-4. Adicionar contas de teste se o app não estiver publicado
+3. Link the Web credential created above
+4. Add test accounts if the app is not published yet
 
-### 7.5 — Unity: instalar o plugin GPGS
+### 7.5 — Unity: Install GPGS Plugin
 
 ```json
 // Packages/manifest.json
@@ -316,41 +319,41 @@ Se o app já estiver cadastrado no Google Play:
 }
 ```
 
-Ou via **Window → Package Manager → + → Add package from git URL**.
+Or via **Window → Package Manager → + → Add package from git URL**.
 
 ### 7.6 — Apple Developer (iOS)
 
 #### Game Center
 
 1. [developer.apple.com](https://developer.apple.com/) → **Certificates, Identifiers & Profiles**
-2. Selecionar o **App ID** do seu app
-3. Ativar **Game Center** capability
-4. **Save** e gerar novo perfil de provisionamento
-5. No **Unity Dashboard** → Authentication → Sign-In Methods → **Apple Game Center** — ativar (não precisa colar nada)
+2. Select your app's **App ID**
+3. Enable **Game Center** capability
+4. **Save** and generate a new provisioning profile
+5. On the **Unity Dashboard** → Authentication → Sign-In Methods → **Apple Game Center** — enable (no need to paste anything)
 
-#### Sign in with Apple (opcional, se for usar `LinkAppleAsync`)
+#### Sign in with Apple (Optional, if using `LinkAppleAsync`)
 
-1. No mesmo App ID, ativar **Sign in with Apple**
-2. Criar um **Service ID** (identificador para o login)
-3. Configurar **Redirect URL** (geralmente `https://{seu-projeto}.unitygameservices.com`)
-4. No **Unity Dashboard** → Authentication → Sign-In Methods → **Apple**
-   - Colar o **Service ID** e **Redirect URL**
+1. Under the same App ID, enable **Sign in with Apple**
+2. Create a **Service ID** (identifier for login)
+3. Configure **Redirect URL** (usually `https://{your-project}.unitygameservices.com`)
+4. On the **Unity Dashboard** → Authentication → Sign-In Methods → **Apple**
+   - Paste the **Service ID** and **Redirect URL**
 
-### 7.7 — Android: Google Play Games (código)
+### 7.7 — Android: Google Play Games (Code)
 
-Depois de configurar tudo acima, o código é o mesmo — mas agora funciona:
+After configuring the steps above, the code is identical — but now it functions:
 
-**3 passos obrigatórios:**
+**3 mandatory steps:**
 
-1. **Autenticar no GPGS** (`PlayGamesPlatform.Authenticate`)
-2. **Solicitar o server auth code** (`RequestServerSideAccess`)
-3. **Passar o código pro CloudAuth** (`LinkGooglePlayGamesAsync`)
+1. **Authenticate with GPGS** (`PlayGamesPlatform.Authenticate`)
+2. **Request the server auth code** (`RequestServerSideAccess`)
+3. **Pass the code to CloudAuth** (`LinkGooglePlayGamesAsync`)
 
 ```csharp
 using GooglePlayGames;
 using GooglePlayGames.BasicApi;
 
-// PASSO 1 — Autenticar no Google Play Games
+// STEP 1 — Authenticate with Google Play Games
 PlayGamesPlatform.Instance.Authenticate(status =>
 {
     if (status != SignInStatus.Success)
@@ -359,7 +362,7 @@ PlayGamesPlatform.Instance.Authenticate(status =>
         return;
     }
 
-    // PASSO 2 — Pegar o server auth code
+    // STEP 2 — Get the server auth code
     PlayGamesPlatform.Instance.RequestServerSideAccess(
         forceRefreshToken: false,
         serverAuthCode =>
@@ -370,35 +373,35 @@ PlayGamesPlatform.Instance.Authenticate(status =>
                 return;
             }
 
-            // PASSO 3 — Vincular ao Unity Cloud Save (UGS)
+            // STEP 3 — Link to Unity Cloud Save (UGS)
             _ = CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);
         });
 });
 ```
 
-**Logs que você vai ver no console:**
+**Console logs to expect:**
 ```
-[CloudAuth] Ready. PlayerId=xxx Provider=Anonymous       ← antes do link
-[CloudAuth] Linked: provider=GooglePlayGames PlayerId=xxx ← depois do link
+[CloudAuth] Ready. PlayerId=xxx Provider=Anonymous       ← before linking
+[CloudAuth] Linked: provider=GooglePlayGames PlayerId=xxx ← after linking
 ```
 
-Ver README para exemplo completo com `SignedInExisting`.
+See README for a complete example utilizing `SignedInExisting`.
 
-### 7.8 — iOS: Apple Game Center (código)
+### 7.8 — iOS: Apple Game Center (Code)
 
-**Pré-requisito:** Instalar o pacote oficial Apple.GameKit (disponível no Package Manager).
+**Prerequisite:** Install the official Apple.GameKit package (available in the Package Manager).
 
 ```csharp
 using Apple.GameKit;
 
-// PASSO 1 — Autenticar no Game Center
+// STEP 1 — Authenticate with Game Center
 var player = GKLocalPlayer.Local;
 
-// PASSO 2 — Pegar a identidade
+// STEP 2 — Retrieve signature items
 var (pubKeyUrl, signature, salt, timestamp) =
     await player.FetchItemsForIdentityVerificationSignatureAsync();
 
-// PASSO 3 — Vincular ao Unity Cloud Save (UGS)
+// STEP 3 — Link to Unity Cloud Save (UGS)
 var result = await CloudAuth.LinkAppleGameCenterAsync(
     publicKeyUrl : pubKeyUrl,
     signature    : Convert.ToBase64String(signature),
@@ -409,73 +412,73 @@ var result = await CloudAuth.LinkAppleGameCenterAsync(
 Debug.Log($"Link result: {result.Status}");
 ```
 
-### 7.9 — iOS: Sign in with Apple (código)
+### 7.9 — iOS: Sign in with Apple (Code)
 
 ```csharp
-// PASSO 1 — Autenticar com Apple
+// STEP 1 — Authenticate with Apple
 var credential = await AppleAuthManager.LoginWithAppleId(...);
 
-// PASSO 2 — Vincular ao UGS
+// STEP 2 — Link to UGS
 var result = await CloudAuth.LinkAppleAsync(credential.IdentityToken);
 ```
 
-### 7.10 — Eventos de auth
+### 7.10 — Auth Events
 
 ```csharp
 CloudAuth.OnLinked += provider => Debug.Log($"Linked: {provider}");
 CloudAuth.OnAccountSwitched += provider => {
-    Debug.Log($"Conta trocada! PlayerId novo: {CloudAuth.PlayerId}");
-    _ = CloudSync.InitAndSyncAsync(_saveData.LastSaved, AplicarCloudSave);
+    Debug.Log($"Account switched! New PlayerId: {CloudAuth.PlayerId}");
+    _ = CloudSync.InitAndSyncAsync(_saveData.LastSaved, ApplyCloudSave);
 };
 ```
 
 ---
 
-## 8. Localização
+## 8. Localization
 
 ```csharp
 CloudSaveLocale.Translate = key => LocalizationManager.GetTermTranslation(key);
 ```
 
-Todas as strings usam chaves como `"cloudsave.synced"`. Quando `Translate` é `null`, usa inglês padrão.
+All strings use keys such as `"cloudsave.synced"`. If `Translate` is `null`, it defaults to English.
 
 ---
 
-## 9. Testar sem UGS
+## 9. Testing Without UGS
 
 **Tools → Wagenheimer → Cloud Save → Open Test Window**
 
-Simula sem precisar de internet ou credenciais:
-- Criar/destruir UIs
-- Disparar toasts (Synced, Error, Offline...)
-- Mostrar diálogo de conflito
-- Simular eventos: `OnSyncStarted`, `OnSyncCompleted`, `OnLinked`
-- Ver estado de todas as propriedades
+Simulate cloud behaviors without internet or credentials:
+- Create/destroy UIs
+- Trigger toasts (Synced, Error, Offline...)
+- Show conflict dialogs
+- Simulate events: `OnSyncStarted`, `OnSyncCompleted`, `OnLinked`
+- View all property states
 
 ---
 
-## 10. Checklist final
+## 10. Final Checklist
 
-- [ ] Package `com.wagenheimer.cloudsave` instalado
-- [ ] Cloud Save habilitado no Unity Dashboard
-- [ ] Projeto vinculado nos Services (Edit → Project Settings → Services)
-- [ ] `CloudSync.Configure("chave")` chamado no startup
-- [ ] `CloudSync.InitAndSyncAsync(timestamp, callback)` chamado no startup
-- [ ] `CloudSync.SaveAsync(bytes, timestamp)` chamado após cada save local
-- [ ] Classe de save tem campo `long LastSaved`
-- [ ] `CloudSaveUI.Create()` chamado (se quiser UI)
-- [ ] `SyncStatusUI.Create()` chamado (se quiser indicador)
-- [ ] Sign-In Methods configurados no Dashboard (Authentication → Sign-In Methods)
-- [ ] Google Play Console configurado (OAuth 2.0 Web client ID) + GPGS plugin instalado (se Android)
-- [ ] Apple Developer: Game Center ativado no App ID + bridge nativa (se iOS)
-- [ ] `CloudAuth.LinkGooglePlayGamesAsync()` / `LinkAppleGameCenterAsync()` chamado (se cross-device)
-- [ ] Testado via **Test Window** (Tools → Wagenheimer → Cloud Save → Open Test Window)
+- [ ] Package `com.wagenheimer.cloudsave` installed
+- [ ] Cloud Save enabled in Unity Dashboard
+- [ ] Project linked in Services (Edit → Project Settings → Services)
+- [ ] `CloudSync.Configure("key")` called at startup
+- [ ] `CloudSync.InitAndSyncAsync(timestamp, callback)` called at startup
+- [ ] `CloudSync.SaveAsync(bytes, timestamp)` called after each local save
+- [ ] Save class has `long LastSaved` field
+- [ ] `CloudSaveUI.Create()` called (if UI is desired)
+- [ ] `SyncStatusUI.Create()` called (if indicator is desired)
+- [ ] Sign-In Methods configured in the Dashboard (Authentication → Sign-In Methods)
+- [ ] Google Play Console configured (OAuth 2.0 Web client ID) + GPGS plugin installed (if Android)
+- [ ] Apple Developer: Game Center enabled in App ID + native bridge (if iOS)
+- [ ] `CloudAuth.LinkGooglePlayGamesAsync()` / `LinkAppleGameCenterAsync()` called (if cross-device)
+- [ ] Tested via **Test Window** (Tools → Wagenheimer → Cloud Save → Open Test Window)
 
 ---
 
-## 11. Reusable AI audit prompt
+## 11. Reusable AI Audit Prompt
 
-Copie e cole este prompt em qualquer IA para que ela analise o projeto e diga exatamente o que já foi feito e o que falta:
+Copy and paste this prompt into any AI to analyze the project and determine integration status:
 
 ```text
 You are a Unity Cloud Save integration auditor.
@@ -539,21 +542,21 @@ Do NOT add explanations beyond the table.
 
 ---
 
-## 12. Logging — o que esperar no console
+## 12. Logging — What to Expect in the Console
 
-O pacote loga tudo via `Debug.Log` / `Debug.LogWarning`. Procure no console por tags `[CloudAuth]`, `[CloudSync]`, `[CloudSave]`.
+The package logs information using `Debug.Log` / `Debug.LogWarning`. Look for console messages prefixed with `[CloudAuth]`, `[CloudSync]`, or `[CloudSave]`.
 
-| Tag | Quando aparece | Exemplo |
-|-----|---------------|---------|
+| Tag | Trigger Condition | Example |
+|-----|-------------------|---------|
 | `[CloudAuth] Ready` | UGS initialized + anonymous sign-in OK | `[CloudAuth] Ready. PlayerId=xxx Provider=Anonymous` |
-| `[CloudAuth] Init failed` | Sem internet ou projeto não vinculado | `[CloudAuth] Init failed: No internet connection` |
-| `[CloudAuth] Linked` | Link com GPGS/GameCenter OK | `[CloudAuth] Linked: provider=GooglePlayGames PlayerId=xxx` |
-| `[CloudAuth] SignedInExisting` | Credencial já vinculada a outra conta | `[CloudAuth] SignedInExisting: provider=Apple` |
-| `[CloudAuth] Link* failed` | Link recusado (token inválido, etc.) | `[CloudAuth] LinkGooglePlayGames failed: ...` |
-| `[CloudSync] Saved to cloud` | SaveAsync enviou dados com sucesso | `[CloudSync] Saved to cloud.` |
-| `[CloudSync] Save failed` | Upload falhou | `[CloudSync] Save failed: ...` |
-| `[CloudSync] No cloud save found` | InitAndSync — primeiro save (não existe nada na nuvem) | `[CloudSync] No cloud save found yet.` |
-| `[CloudSync] InitAndSync error` | Sync falhou completamente | `[CloudSync] InitAndSync error: ...` |
-| (Debug geral) | UIs, prefabs, etc. | `[CloudSave] Prefab generated at ...` |
+| `[CloudAuth] Init failed` | No internet or project not linked | `[CloudAuth] Ready failed: ...` |
+| `[CloudAuth] Linked` | Link with GPGS/GameCenter OK | `[CloudAuth] Linked: provider=GooglePlayGames PlayerId=xxx` |
+| `[CloudAuth] SignedInExisting` | Credential already linked to another account | `[CloudAuth] SignedInExisting: provider=Apple` |
+| `[CloudAuth] Link* failed` | Link rejected (invalid token, etc.) | `[CloudAuth] LinkGooglePlayGames failed: ...` |
+| `[CloudSync] Saved to cloud` | SaveAsync uploaded data successfully | `[CloudSync] Saved to cloud.` |
+| `[CloudSync] Save failed` | Upload failed | `[CloudSync] Save failed: ...` |
+| `[CloudSync] No cloud save found` | InitAndSync — first save (no remote save exists) | `[CloudSync] No cloud save found yet.` |
+| `[CloudSync] InitAndSync error` | Sync failed completely | `[CloudSync] InitAndSync error: ...` |
+| (General Debug) | UIs, prefabs, etc. | `[CloudSave] Prefab generated at ...` |
 
-Se **não aparecer nenhum log** com `[CloudAuth]` ou `[CloudSync]`, o código não está chamando as APIs do pacote — rode o **Audit** (Tools → Wagenheimer → Cloud Save → Audit Integration) para confirmar.
+If **no logs** containing `[CloudAuth]` or `[CloudSync]` appear, the package APIs are not being called. Run the **Audit** (Tools → Wagenheimer → Cloud Save → Audit Integration) to confirm.

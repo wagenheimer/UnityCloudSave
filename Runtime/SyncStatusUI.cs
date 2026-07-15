@@ -100,7 +100,7 @@ namespace Wagenheimer.CloudSave
 
             DontDestroyOnLoad(gameObject);
 
-            // Se o sync já rodou antes da UI ser criada, usar o último resultado
+            // If sync already ran before UI was created, use the last result
             if (CloudSync.LastResult.HasValue)
             {
                 OnSyncCompleted(CloudSync.LastResult.Value);
