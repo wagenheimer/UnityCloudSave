@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.9.1] - 2026-07-15
+
+### Changed
+- chore: translate UI, docs and comments to English
+
 ## [4.9.0] - 2026-07-09
 
 ### Added
