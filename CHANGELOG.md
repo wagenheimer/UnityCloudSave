@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.11.0] - 2026-09-02
+
+### Added
+- Facebook and Google sign-in providers, account deletion, sign-out and unlink (4.10.0)
+
 ## [4.10.0] - 2026-09-01
 
 ### Added
