@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.10.0] - 2026-09-01
+
+### Added
+- `CloudAuth.LinkFacebookAsync(accessToken)` and `SignInWithFacebookAsync` fallback for Facebook login.
+- `CloudAuth.LinkGoogleAsync(idToken)` and `SignInWithGoogleAsync` fallback for Google ID token login.
+- `CloudAuth.DeleteAccountAsync()` for GDPR / Store compliance account deletion in Unity Gaming Services.
+- `CloudAuth.SignOut(clearCredentials)` and `CloudAuth.UnlinkAsync(provider)`.
+- `CloudAuthProvider.Facebook` and `CloudAuthProvider.Google` enum entries.
+- Localized strings and convenience methods for Facebook and Google sign-in.
+
 ## [4.9.1] - 2026-07-15
 
 ### Changed

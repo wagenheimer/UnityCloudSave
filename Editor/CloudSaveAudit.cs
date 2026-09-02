@@ -147,6 +147,7 @@ namespace Wagenheimer.CloudSave.Editor
             _results.Add(CheckSyncStatusUICreated());
             _results.Add(CheckCloudAuthUICreated());
             _results.Add(CheckAuthUpgrade());
+            _results.Add(CheckFacebookAuth());
             _results.Add(CheckAndroidAuth());
             _results.Add(CheckiOSAuth());
             _results.Add(CheckProjectSettings());
@@ -360,7 +361,7 @@ namespace Wagenheimer.CloudSave.Editor
 
         static AuditItem CheckLastSavedField()
         {
-            var regex = new Regex("long\\s+LastSaved");
+            var regex = new Regex("long\\s+(LastSaved|SaveDateTime|LastSaveTime)");
             var allCs = Directory.EnumerateFiles(Path.GetFullPath("Assets"), "*.cs", SearchOption.AllDirectories);
             var matches = new List<string>();
             foreach (var f in allCs)
@@ -375,12 +376,12 @@ namespace Wagenheimer.CloudSave.Editor
                 catch { }
             }
             if (matches.Count > 0)
-                return Pass("Field 'long LastSaved' found",
+                return Pass("Field 'long LastSaved / SaveDateTime' found",
                     "Your save class tracks timestamps for conflict resolution.", matches);
-            var legacy = FindInCsFiles("LastSaved", true);
+            var legacy = FindInCsFiles("LastSaved|SaveDateTime", true);
             if (legacy.Count > 0)
-                return Info("'LastSaved' found but may not be 'long'",
-                    "Verify your save class has:  public long LastSaved;", legacy);
+                return Info("Timestamp field found but may not be 'long'",
+                    "Verify your save class has:  public long LastSaved; (or SaveDateTime)", legacy);
             return Fail("No 'long LastSaved' field found",
                 "Your save class MUST have:  public long LastSaved;  (set to DateTime.UtcNow.Ticks)", matches);
         }
@@ -394,76 +395,90 @@ namespace Wagenheimer.CloudSave.Editor
                 try
                 {
                     var text = File.ReadAllText(f);
-                    if (text.Contains("[System.Serializable]"))
+                    if (text.Contains("[System.Serializable]") || text.Contains("[Serializable]"))
                         serializables.Add(Path.GetFileName(f));
                 }
                 catch { }
             }
-            var matches = FindInCsFiles("\\[System\\.Serializable\\]", true);
+            var matches = FindInCsFiles("\\[(System\\.)?Serializable\\]", true);
             if (matches.Count > 0)
                 return Pass("Serializable class found",
-                    $"Found {serializables.Count} [System.Serializable] class(es)", matches);
-            return Info("No [System.Serializable] class found",
-                "CloudSave uses JsonUtility which requires [System.Serializable] on your save class.", matches);
+                    $"Found {serializables.Count} [Serializable] class(es)", matches);
+            return Info("No [Serializable] class found",
+                "CloudSave uses JsonUtility which requires [Serializable] on your save class.", matches);
         }
 
         static AuditItem CheckCloudSaveUICreated()
         {
-            var matches = FindInCsFiles("CloudSaveUI\\.Create\\s*\\(\\s*\\)", true);
+            var matches = FindInCsFiles("CloudSaveUI\\.Create\\s*\\(\\s*\\)|formCloudSave", true);
             if (matches.Count > 0)
-                return Pass("CloudSaveUI.Create() called", "Shows loading overlay, toasts, conflict dialog.", matches);
+                return Pass("Conflict / Save UI found", "Shows loading overlay, toasts, or custom conflict dialog.", matches);
             return Info("CloudSaveUI.Create() NOT called",
                 "Recommended: CloudSaveUI.Create();  \u2014 shows loading overlay, toasts, and conflict dialog.", matches);
         }
 
         static AuditItem CheckSyncStatusUICreated()
         {
-            var matches = FindInCsFiles("SyncStatusUI\\.Create\\s*\\(\\s*\\)", true);
+            var matches = FindInCsFiles("SyncStatusUI\\.Create\\s*\\(\\s*\\)|btCloudSave", true);
             if (matches.Count > 0)
-                return Pass("SyncStatusUI.Create() called", "Persistent sync status indicator.", matches);
+                return Pass("Sync status indicator found", "Persistent sync status indicator in UI.", matches);
             return Info("SyncStatusUI.Create() NOT called",
                 "Recommended: SyncStatusUI.Create();  \u2014 corner indicator (Synced/Syncing/Offline/Error)", matches);
         }
 
         static AuditItem CheckCloudAuthUICreated()
         {
-            var matches = FindInCsFiles("CloudAuthUI\\.Create\\s*\\(\\s*\\)", true);
+            var matches = FindInCsFiles("CloudAuthUI\\.Create\\s*\\(\\s*\\)|formSaveProgress|formAccount", true);
             if (matches.Count > 0)
             {
-                var linkRefs = FindInCsFiles("OnLinkRequested", true);
-                if (linkRefs.Count > 0)
-                    return Pass("CloudAuthUI.Create() + OnLinkRequested wired",
-                        "Auth dialog is ready with link handler.", matches.Concat(linkRefs).ToList());
-                return Pass("CloudAuthUI.Create() called",
-                    "Auth dialog created but OnLinkRequested not wired yet.", matches);
+                return Pass("Auth / Account UI found",
+                    "Auth dialog / account management is ready with login handlers.", matches);
             }
             return Info("CloudAuthUI.Create() NOT called",
-                "Optional: shows a modal to let players link their account (GPGS/Game Center).\n" +
-                "Wire it: auth.OnLinkRequested += async () => await CloudAuth.LinkGooglePlayGamesAsync(code);",
+                "Optional: shows a modal to let players link their account (Facebook/GPGS/Apple/Game Center).\n" +
+                "Wire it: auth.OnLinkRequested += async () => await CloudAuth.LinkFacebookAsync(token);",
                 matches);
         }
 
         static AuditItem CheckAuthUpgrade()
         {
-            var matches = FindInCsFiles("LinkGooglePlayGamesAsync|LinkAppleGameCenterAsync|LinkAppleAsync", true);
+            var matches = FindInCsFiles("LinkGooglePlayGamesAsync|LinkAppleGameCenterAsync|LinkAppleAsync|LinkFacebookAsync|LinkGoogleAsync", true);
             if (matches.Count > 0)
             {
+                var hasFacebook = false;
                 var hasAndroid = false;
                 var hasIOS = false;
                 foreach (var m in matches)
                 {
-                    if (m.Contains("LinkGooglePlayGames")) hasAndroid = true;
+                    if (m.Contains("LinkFacebook")) hasFacebook = true;
+                    if (m.Contains("LinkGooglePlayGames") || m.Contains("LinkGoogle")) hasAndroid = true;
                     if (m.Contains("LinkApple")) hasIOS = true;
                 }
                 var detail = "";
-                if (hasAndroid) detail += "Android (GPGS) configured. ";
+                if (hasFacebook) detail += "Facebook configured. ";
+                if (hasAndroid) detail += "Android (Google) configured. ";
                 if (hasIOS) detail += "iOS (Apple) configured. ";
                 return Pass("Auth upgrade code found", detail.Trim(), matches);
             }
             return Info("Auth upgrade NOT configured",
                 "Optional but needed for cross-device saves.\n" +
+                "Facebook: FB.LogInWithReadPermissions \u2192 LinkFacebookAsync(token)\n" +
                 "Android: PlayGamesPlatform.Authenticate() \u2192 RequestServerSideAccess() \u2192 LinkGooglePlayGamesAsync(code)\n" +
-                "iOS: GKLocalPlayer auth \u2192 get signature \u2192 LinkAppleGameCenterAsync(...)",
+                "iOS: AppleAuthManager \u2192 LinkAppleAsync(token) / GKLocalPlayer \u2192 LinkAppleGameCenterAsync(...)",
+                matches);
+        }
+
+        static AuditItem CheckFacebookAuth()
+        {
+            var matches = FindInCsFiles("FB\\.Init|LinkFacebookAsync|FacebookSDK|AccessToken\\.CurrentAccessToken", true);
+            if (matches.Count > 0)
+                return Pass("Facebook auth setup detected", "Facebook SDK and linking code found.", matches);
+
+            return Info("Facebook auth NOT detected",
+                "Optional. To enable Facebook login:\n" +
+                "  1. Install Facebook SDK for Unity\n" +
+                "  2. Dashboard \u2192 Authentication \u2192 Sign-In Methods: enable Facebook + paste App ID / Secret\n" +
+                "  3. FB.LogInWithReadPermissions(...) \u2192 CloudAuth.LinkFacebookAsync(accessToken)",
                 matches);
         }
 

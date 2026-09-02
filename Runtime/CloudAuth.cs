@@ -202,6 +202,150 @@ namespace Wagenheimer.CloudSave
             }
         }
 
+        // ── Facebook ─────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Links the anonymous account to Facebook, or signs in to the
+        /// existing linked account.
+        /// Pass the <c>accessToken</c> string from the Facebook SDK.
+        /// </summary>
+        public static async Task<CloudLinkResult> LinkFacebookAsync(string accessToken)
+        {
+            if (string.IsNullOrEmpty(accessToken))
+                return CloudLinkResult.Fail("accessToken is null or empty.");
+
+            await EnsureSignedInAsync();
+            if (!IsReady)
+                return CloudLinkResult.Fail("CloudAuth not initialized.");
+
+            try
+            {
+                await AuthenticationService.Instance.LinkWithFacebookAsync(accessToken);
+                return FinalizeLink(CloudAuthProvider.Facebook, CloudLinkStatus.Linked);
+            }
+            catch (AuthenticationException e) when (e.ErrorCode == AuthenticationErrorCodes.AccountAlreadyLinked)
+            {
+                return await SignInWithProviderAsync(
+                    CloudAuthProvider.Facebook,
+                    () => AuthenticationService.Instance.SignInWithFacebookAsync(accessToken));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudAuth] LinkFacebook failed: {e.Message}");
+                return CloudLinkResult.Fail(e.Message);
+            }
+        }
+
+        // ── Google (ID Token) ─────────────────────────────────────────────────
+
+        /// <summary>
+        /// Links the anonymous account to Google (via Google ID token), or signs in
+        /// to the existing linked account.
+        /// </summary>
+        public static async Task<CloudLinkResult> LinkGoogleAsync(string idToken)
+        {
+            if (string.IsNullOrEmpty(idToken))
+                return CloudLinkResult.Fail("idToken is null or empty.");
+
+            await EnsureSignedInAsync();
+            if (!IsReady)
+                return CloudLinkResult.Fail("CloudAuth not initialized.");
+
+            try
+            {
+                await AuthenticationService.Instance.LinkWithGoogleAsync(idToken);
+                return FinalizeLink(CloudAuthProvider.Google, CloudLinkStatus.Linked);
+            }
+            catch (AuthenticationException e) when (e.ErrorCode == AuthenticationErrorCodes.AccountAlreadyLinked)
+            {
+                return await SignInWithProviderAsync(
+                    CloudAuthProvider.Google,
+                    () => AuthenticationService.Instance.SignInWithGoogleAsync(idToken));
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudAuth] LinkGoogle failed: {e.Message}");
+                return CloudLinkResult.Fail(e.Message);
+            }
+        }
+
+        // ── Account Management ───────────────────────────────────────────────
+
+        /// <summary>
+        /// Deletes the current player's account from Unity Gaming Services Authentication.
+        /// Required for GDPR / App Store compliance.
+        /// </summary>
+        public static async Task<bool> DeleteAccountAsync()
+        {
+            if (!IsSignedIn) return false;
+            try
+            {
+                await AuthenticationService.Instance.DeleteAccountAsync();
+                _provider = CloudAuthProvider.Anonymous;
+                IsReady = false;
+                Debug.Log("[CloudAuth] Account deleted successfully.");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudAuth] DeleteAccount failed: {e.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Signs the player out and optionally clears cached local credentials.
+        /// </summary>
+        public static void SignOut(bool clearCredentials = false)
+        {
+            if (AuthenticationService.Instance.IsSignedIn)
+            {
+                AuthenticationService.Instance.SignOut(clearCredentials);
+            }
+            _provider = CloudAuthProvider.Anonymous;
+            IsReady = false;
+        }
+
+        /// <summary>
+        /// Unlinks the specified provider from the player's account.
+        /// </summary>
+        public static async Task<bool> UnlinkAsync(CloudAuthProvider provider)
+        {
+            if (!IsSignedIn) return false;
+            try
+            {
+                switch (provider)
+                {
+                    case CloudAuthProvider.Facebook:
+                        await AuthenticationService.Instance.UnlinkFacebookAsync();
+                        break;
+                    case CloudAuthProvider.GooglePlayGames:
+                        await AuthenticationService.Instance.UnlinkGooglePlayGamesAsync();
+                        break;
+                    case CloudAuthProvider.Google:
+                        await AuthenticationService.Instance.UnlinkGoogleAsync();
+                        break;
+                    case CloudAuthProvider.Apple:
+                        await AuthenticationService.Instance.UnlinkAppleAsync();
+                        break;
+                    case CloudAuthProvider.AppleGameCenter:
+                        await AuthenticationService.Instance.UnlinkAppleGameCenterAsync();
+                        break;
+                    default:
+                        return false;
+                }
+
+                _provider = CloudAuthProvider.Anonymous;
+                Debug.Log($"[CloudAuth] Unlinked {provider}. Account reverted to anonymous.");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudAuth] Unlink {provider} failed: {e.Message}");
+                return false;
+            }
+        }
+
         // ── private helpers ───────────────────────────────────────────────────
 
         static CloudLinkResult FinalizeLink(CloudAuthProvider provider, CloudLinkStatus status)

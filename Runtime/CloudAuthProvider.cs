@@ -4,7 +4,9 @@ namespace Wagenheimer.CloudSave
     {
         Anonymous,
         GooglePlayGames,
+        Google,
         Apple,
-        AppleGameCenter
+        AppleGameCenter,
+        Facebook
     }
 }

@@ -146,13 +146,15 @@ namespace Wagenheimer.CloudSave
 
         static string GetCurrentProviderName()
         {
-#if UNITY_ANDROID
-            return "Google Play Games";
-#elif UNITY_IOS
-            return "Game Center";
-#else
-            return "";
-#endif
+            return CloudAuth.Provider switch
+            {
+                CloudAuthProvider.Facebook => "Facebook",
+                CloudAuthProvider.GooglePlayGames => "Google Play Games",
+                CloudAuthProvider.Google => "Google",
+                CloudAuthProvider.Apple => "Apple",
+                CloudAuthProvider.AppleGameCenter => "Game Center",
+                _ => ""
+            };
         }
 
         // ── Factory (Editor) ───────────────────────────────────────────────

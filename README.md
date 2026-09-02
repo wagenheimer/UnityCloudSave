@@ -179,24 +179,20 @@ var result = await CloudAuth.LinkAppleGameCenterAsync(
 
 ---
 
-## Auth: Upgrade to Sign in with Apple (iOS)
+## Auth: Upgrade to Facebook
+For games using the Facebook SDK for Unity:
 
-For apps using [Sign in with Apple](https://github.com/lupidan/apple-signin-unity):
-
-```csharp
-var credential = await AppleAuthManager.LoginWithAppleId(...);
-var result = await CloudAuth.LinkAppleAsync(credential.IdentityToken);
+var result = await CloudAuth.LinkFacebookAsync(AccessToken.CurrentAccessToken.TokenString);
 
 if (result.Status == CloudLinkStatus.SignedInExisting)
     await CloudSync.InitAndSyncAsync(SaveData.LastSaved, ApplyCloudSave);
-```
 
 ---
 
-## Auth State
+## Auth: Upgrade to Google (ID Token)
 
-```csharp
-CloudAuth.IsReady          // true once UGS is initialized and signed in
+For games using Google Sign-In with an ID token:
+
 CloudAuth.IsAnonymous      // true = not yet linked to a provider
 CloudAuth.IsLinked         // true = linked to GPGS, Apple, or Game Center
 CloudAuth.Provider         // CloudAuthProvider enum value

@@ -47,6 +47,8 @@ namespace Wagenheimer.CloudSave
             "cloudsave.auth_status_anonymous" => "Account: Anonymous",
             "cloudsave.auth_status_linked"  => "Account: {0}",
             "cloudsave.auth_btn_google"     => "Sign in with Google Play Games",
+            "cloudsave.auth_btn_google_signin" => "Sign in with Google",
+            "cloudsave.auth_btn_facebook"   => "Sign in with Facebook",
             "cloudsave.auth_btn_apple"      => "Sign in with Apple Game Center",
             "cloudsave.auth_btn_signin_apple" => "Sign in with Apple",
             "cloudsave.auth_btn_close"      => "Not now",
@@ -85,6 +87,8 @@ namespace Wagenheimer.CloudSave
         public static string AuthStatusAnonymous()   => Get("cloudsave.auth_status_anonymous");
         public static string AuthStatusLinked(string p) => string.Format(Get("cloudsave.auth_status_linked"), p);
         public static string AuthBtnGoogle()          => Get("cloudsave.auth_btn_google");
+        public static string AuthBtnGoogleSignIn()    => Get("cloudsave.auth_btn_google_signin");
+        public static string AuthBtnFacebook()        => Get("cloudsave.auth_btn_facebook");
         public static string AuthBtnApple()           => Get("cloudsave.auth_btn_apple");
         public static string AuthBtnSignInApple()     => Get("cloudsave.auth_btn_signin_apple");
         public static string AuthBtnClose()           => Get("cloudsave.auth_btn_close");

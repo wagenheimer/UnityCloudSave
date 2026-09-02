@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace Wagenheimer.CloudSave.Editor
@@ -78,17 +78,21 @@ namespace Wagenheimer.CloudSave.Editor
                 code: "Dashboard URL (click to open):\nhttps://dashboard.unity3d.com/",
                 link: "\ud83d\udd17 Open Dashboard \u2192 Authentication", url: "https://dashboard.unity3d.com/");
 
-            DrawCard(9, "Auth \u2014 Android (optional)",
+            DrawCard(9, "Auth \u2014 Facebook (optional)",
+                "PR\u00c9-REQUISITOS:\n  1. Meta for Developers: create App, get App ID and App Secret\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: enable Facebook + paste App ID & Secret\n  3. Install Facebook SDK for Unity (Facebook.Unity)\n\nCODE:\nFB.LogInWithReadPermissions(perms, result => {\n    var token = AccessToken.CurrentAccessToken.TokenString;\n    _ = CloudAuth.LinkFacebookAsync(token);\n});",
+                code: "// 1 \u2014 Login Facebook\nFB.LogInWithReadPermissions(new List<string> { \"public_profile\", \"email\" }, result =>\n{\n    if (FB.IsLoggedIn)\n    {\n        // 2 \u2014 Vincular ao UGS\n        _ = CloudAuth.LinkFacebookAsync(AccessToken.CurrentAccessToken.TokenString);\n    }\n});");
+
+            DrawCard(10, "Auth \u2014 Android (optional)",
                 "PR\u00c9-REQUISITOS:\n  1. Google Play Console: enable Play Games Services + get OAuth 2.0 Web client ID\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: activate GPGS + paste client ID\n  3. Install GPGS plugin: com.google.play.games\n\nCODE (3 steps):\nSTEP 1: PlayGamesPlatform.Authenticate\nSTEP 2: RequestServerSideAccess(false, code =>)\nSTEP 3: CloudAuth.LinkGooglePlayGamesAsync(code)",
                 code: "// 1 \u2014 Autenticar no Google Play Games\nPlayGamesPlatform.Instance.Authenticate(status =>\n{\n    if (status != SignInStatus.Success) return;\n\n    // 2 \u2014 Solicitar server auth code\n    PlayGamesPlatform.Instance.RequestServerSideAccess(\n        false, serverAuthCode =>\n    {\n        // 3 \u2014 Vincular ao UGS\n        _ = CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);\n    });\n});");
 
-            DrawCard(10, "Auth \u2014 iOS (optional)",
-                "PR\u00c9-REQUISITOS:\n  1. Apple Developer: enable Game Center on App ID\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: enable Apple Game Center\n  3. Install Apple.GameKit (official Unity package)\n\nCODE (3 steps):\nSTEP 1: GKLocalPlayer.Local\nSTEP 2: FetchItemsForIdentityVerificationSignatureAsync\nSTEP 3: CloudAuth.LinkAppleGameCenterAsync(...)");
+            DrawCard(11, "Auth \u2014 iOS (optional)",
+                "PR\u00c9-REQUISITOS:\n  1. Apple Developer: enable Game Center or Sign in with Apple on App ID\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: enable Apple / Game Center\n  3. Install Apple.GameKit / AppleSignInUnity\n\nCODE:\n_ = CloudAuth.LinkAppleAsync(identityToken);\n// ou via Game Center signature:\n_ = CloudAuth.LinkAppleGameCenterAsync(...);");
 
-            DrawCard(11, "Test Without UGS",
+            DrawCard(12, "Test Without UGS",
                 "Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Open Test Window\nSimulate sync, toasts, conflicts and events \u2014 no internet needed.");
 
-            DrawCard(12, "Audit Integration",
+            DrawCard(13, "Audit Integration",
                 "Run a full project scan: Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Audit Integration\nValidates package, code, UIs, auth calls, platform plugins, AND sign-in methods.");
 
             GUILayout.Space(10);
