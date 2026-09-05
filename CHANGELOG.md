@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.17.0] - 2026-09-05
+
+### Added
+- fold the 19 audit checks into the step catalog (Phase 1, push 1)
+
 ## [4.16.1] - 2026-09-05
 
 ### Fixed
