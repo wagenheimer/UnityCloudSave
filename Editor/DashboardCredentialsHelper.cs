@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text.RegularExpressions;
 using UnityEditor;
@@ -16,6 +16,7 @@ namespace Wagenheimer.CloudSave.Editor
         [System.Serializable]
         public class CredentialsData
         {
+            public string OrganizationId;
             public string CloudProjectId;
             public string GoogleWebClientId;
             public string GoogleAndroidClientId;
@@ -63,7 +64,7 @@ namespace Wagenheimer.CloudSave.Editor
         {
             var data = new CredentialsData();
 
-            // 1. Cloud Project ID
+            // 1. Cloud Project ID and Organization ID
             var projSettings = Path.GetFullPath("ProjectSettings/ProjectSettings.asset");
             if (File.Exists(projSettings))
             {
@@ -71,15 +72,22 @@ namespace Wagenheimer.CloudSave.Editor
                 var match = Regex.Match(text, @"cloudProjectId:\s*([0-9a-fA-F-]+)");
                 if (match.Success)
                     data.CloudProjectId = match.Groups[1].Value.Trim();
+
+                var orgMatch = Regex.Match(text, @"organizationId:\s*([^\r\n]+)");
+                if (orgMatch.Success)
+                    data.OrganizationId = orgMatch.Groups[1].Value.Trim();
             }
 
             if (!string.IsNullOrEmpty(data.CloudProjectId))
             {
-                data.DashboardUrl = $"https://dashboard.unity3d.com/projects/{data.CloudProjectId}/authentication/sign-in-methods";
+                if (!string.IsNullOrEmpty(data.OrganizationId))
+                    data.DashboardUrl = $"https://cloud.unity.com/organizations/{data.OrganizationId}/projects/{data.CloudProjectId}/player-authentication/identity-providers";
+                else
+                    data.DashboardUrl = $"https://cloud.unity.com/projects/{data.CloudProjectId}/player-authentication/identity-providers";
             }
             else
             {
-                data.DashboardUrl = "https://dashboard.unity3d.com";
+                data.DashboardUrl = "https://cloud.unity.com";
             }
 
             // 2. Google Web Client ID (from google-services.json)

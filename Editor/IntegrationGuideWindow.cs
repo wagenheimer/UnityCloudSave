@@ -73,10 +73,10 @@ namespace Wagenheimer.CloudSave.Editor
                 "Your data class MUST include a timestamp:",
                 code: "[System.Serializable]\npublic class MeuSaveData\n{\n    public long LastSaved;  // REQUIRED\n    public int Moedas;\n    public int Fase;\n}");
 
-            DrawCard(8, "Dashboard: Configure Sign-In Methods",
-                "PR\u00c9-REQUISITO para auth upgrade (Android/iOS).\n\nDashboard \u2192 Authentication \u2192 Sign-In Methods:\n  \u2022 Anonymous: enabled by default \u2713\n  \u2022 Google Play Games: paste Web client ID from Google Play Console\n  \u2022 Apple Game Center: just enable (no extra fields)\n  \u2022 Apple (Sign in with Apple): fill Service ID + Redirect URL\n\nWithout this, LinkGooglePlayGamesAsync / LinkApple* will fail.",
-                code: "Dashboard URL (click to open):\nhttps://dashboard.unity3d.com/",
-                link: "\ud83d\udd17 Open Dashboard \u2192 Authentication", url: "https://dashboard.unity3d.com/");
+            DrawCard(8, "Dashboard: Configure Sign-In Methods (Identity Providers)",
+                "PR\u00c9-REQUISITO para auth upgrade (Android/iOS/Facebook).\n\nCloud Dashboard \u2192 Player Authentication \u2192 Identity Providers:\n  \u2022 Anonymous: enabled by default \u2713\n  \u2022 Google / Google Play Games: paste Web client ID\n  \u2022 Apple Game Center: just enable (no extra fields)\n  \u2022 Apple (Sign in with Apple): fill Service ID + Redirect URL\n  \u2022 Facebook: paste App ID and App Secret\n\nUse Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Dashboard Credentials Helper to auto-detect your IDs.",
+                code: "Cloud Dashboard URL:\nhttps://cloud.unity.com/",
+                link: "\ud83d\udd17 Open Identity Providers", url: "https://cloud.unity.com/");
 
             DrawCard(9, "Auth \u2014 Facebook (optional)",
                 "PR\u00c9-REQUISITOS:\n  1. Meta for Developers: create App, get App ID and App Secret\n  2. Dashboard \u2192 Auth \u2192 Sign-In Methods: enable Facebook + paste App ID & Secret\n  3. Install Facebook SDK for Unity (Facebook.Unity)\n\nCODE:\nFB.LogInWithReadPermissions(perms, result => {\n    var token = AccessToken.CurrentAccessToken.TokenString;\n    _ = CloudAuth.LinkFacebookAsync(token);\n});",
