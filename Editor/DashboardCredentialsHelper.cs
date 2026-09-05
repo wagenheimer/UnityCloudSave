@@ -82,17 +82,28 @@ namespace Wagenheimer.CloudSave.Editor
                     data.OrganizationId = orgMatch.Groups[1].Value.Trim();
             }
 
+            // Resolve numeric Genesis ID if slug was stored (e.g. green-sauce-games -> 22730)
+            string genesisId = data.OrganizationId;
+            if (!string.IsNullOrEmpty(genesisId))
+            {
+                if (genesisId.Equals("green-sauce-games", StringComparison.OrdinalIgnoreCase))
+                {
+                    genesisId = "22730";
+                    data.OrganizationId = "22730";
+                }
+            }
+
             if (!string.IsNullOrEmpty(data.CloudProjectId))
             {
-                if (!string.IsNullOrEmpty(data.OrganizationId))
+                if (!string.IsNullOrEmpty(genesisId) && long.TryParse(genesisId, out _))
                 {
-                    data.DashboardUrl = $"https://cloud.unity.com/organizations/{data.OrganizationId}/projects/{data.CloudProjectId}/player-authentication/identity-providers";
-                    data.ServiceAccountsUrl = $"https://cloud.unity.com/organizations/{data.OrganizationId}/projects/{data.CloudProjectId}/administration/service-accounts";
+                    data.DashboardUrl = $"https://cloud.unity.com/organizations/{genesisId}/projects/{data.CloudProjectId}/player-authentication/identity-providers";
+                    data.ServiceAccountsUrl = $"https://cloud.unity.com/organizations/{genesisId}/administration/service-accounts";
                 }
                 else
                 {
                     data.DashboardUrl = $"https://cloud.unity.com/projects/{data.CloudProjectId}/player-authentication/identity-providers";
-                    data.ServiceAccountsUrl = $"https://cloud.unity.com/projects/{data.CloudProjectId}/administration/service-accounts";
+                    data.ServiceAccountsUrl = "https://cloud.unity.com/administration/service-accounts";
                 }
             }
             else
@@ -229,12 +240,33 @@ namespace Wagenheimer.CloudSave.Editor
 
             EditorGUILayout.Space(8);
 
-            // Manual Setup Link Card
-            DrawSection("Quick Manual Setup (Recommended for 1 Game)", () =>
+            // Organization & Project IDs Card
+            DrawSection("Unity Cloud Project & Organization", () =>
             {
                 EditorGUILayout.LabelField($"Project ID: {_cachedData.CloudProjectId ?? "Unlinked"}");
-                EditorGUILayout.HelpBox("💡 Easiest: Click below to open Identity Providers in your browser, click 'Google Play Games', and paste the Google Web Client ID copied above.", MessageType.Info);
-                if (GUILayout.Button("🌐 Open Identity Providers in Dashboard", GUILayout.Height(28)))
+                EditorGUI.BeginChangeCheck();
+                _cachedData.OrganizationId = EditorGUILayout.TextField("Org Genesis ID", _cachedData.OrganizationId);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    if (!string.IsNullOrEmpty(_cachedData.CloudProjectId))
+                    {
+                        if (!string.IsNullOrEmpty(_cachedData.OrganizationId) && long.TryParse(_cachedData.OrganizationId, out _))
+                        {
+                            _cachedData.DashboardUrl = $"https://cloud.unity.com/organizations/{_cachedData.OrganizationId}/projects/{_cachedData.CloudProjectId}/player-authentication/identity-providers";
+                            _cachedData.ServiceAccountsUrl = $"https://cloud.unity.com/organizations/{_cachedData.OrganizationId}/administration/service-accounts";
+                        }
+                    }
+                }
+            });
+
+            EditorGUILayout.Space(8);
+
+            // Manual Setup Link Card
+            DrawSection("1. Manual Setup: Identity Providers", () =>
+            {
+                EditorGUILayout.HelpBox("💡 Easiest option:\n1. Click 'Open Identity Providers' below.\n2. Click 'Google Play Games'.\n3. Paste the Google Web Client ID (already copied).\n\nBreadcrumbs in Dashboard: Project ➔ Player Authentication ➔ Identity Providers", MessageType.Info);
+                EditorGUILayout.SelectableLabel(_cachedData.DashboardUrl, EditorStyles.textField, GUILayout.Height(20));
+                if (GUILayout.Button("🌐 Open Identity Providers in Browser", GUILayout.Height(28)))
                 {
                     Application.OpenURL(_cachedData.DashboardUrl);
                 }
@@ -243,9 +275,11 @@ namespace Wagenheimer.CloudSave.Editor
             EditorGUILayout.Space(8);
 
             // Automated API Section
-            DrawSection("100% Automated Setup via Unity Management API", () =>
+            DrawSection("2. Automated API Setup: Service Accounts", () =>
             {
-                EditorGUILayout.HelpBox("⚠️ IMPORTANT:\nDo NOT use the 'Secrets' tab in the left sidebar menu (that is for Cloud Code scripts and environment variables).\n\nService Accounts are located under:\nAdministration -> Service accounts (or click the button below).", MessageType.Warning);
+                EditorGUILayout.HelpBox("⚠️ IMPORTANT:\n• Do NOT use 'Secrets' in the project sidebar (that is for Cloud Code variables).\n• Service Accounts are under ORGANIZATION Administration.\n\nBreadcrumbs in Dashboard: Top-left Organization ➔ Administration ➔ Service accounts", MessageType.Warning);
+
+                EditorGUILayout.SelectableLabel(_cachedData.ServiceAccountsUrl, EditorStyles.textField, GUILayout.Height(20));
 
                 if (GUILayout.Button("🌐 Open Service Accounts in Browser", GUILayout.Height(26)))
                 {
@@ -253,11 +287,11 @@ namespace Wagenheimer.CloudSave.Editor
                 }
 
                 EditorGUILayout.Space(4);
-                EditorGUILayout.LabelField("Steps to get credentials:", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("Steps to create credentials:", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField("1. Click the button above to open Service Accounts.");
-                EditorGUILayout.LabelField("2. Click '+ Create service account'.");
-                EditorGUILayout.LabelField("3. Name: 'CloudSaveAdmin' | Role: 'Player Authentication Admin'.");
-                EditorGUILayout.LabelField("4. Copy the generated Key ID and Secret Key (Secret is only shown once!).");
+                EditorGUILayout.LabelField("2. Click '+ Create service account' (Name: 'CloudSaveAdmin').");
+                EditorGUILayout.LabelField("3. Go to 'Keys' tab ➔ '+ Add key' (Secret is shown ONLY ONCE!).");
+                EditorGUILayout.LabelField("4. Go to 'Roles' tab ➔ Grant 'Player Authentication Admin' for this project.");
                 EditorGUILayout.LabelField("5. Paste below in format:  <KeyID>:<SecretKey>");
                 EditorGUILayout.Space(4);
 
