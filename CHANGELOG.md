@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.12.1] - 2026-09-05
+
+### Added
+- add CloudMigration, save reset, delete save, and store compliance audit checks (v4.11.0)
+
+### Fixed
+- replace manual YAML stubs with valid 64-bit serialized prefabs (v4.11.1)
+
 ## [4.12.0] - 2026-09-05
 
 ### Fixed
