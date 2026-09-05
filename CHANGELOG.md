@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.13.0] - 2026-09-05
+
+### Added
+- add RunAuditFromCli menu item, automated CLI report and AI prompt
+
 ## [4.12.1] - 2026-09-05
 
 ### Added
