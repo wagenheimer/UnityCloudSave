@@ -136,26 +136,100 @@ namespace Wagenheimer.CloudSave.Editor
         {
             _results.Clear();
             _ranAudit = true;
+            _results.AddRange(RunAllChecks());
+        }
 
-            _results.Add(CheckPackageInstalled());
-            _results.Add(CheckConfigure());
-            _results.Add(CheckInitAndSync());
-            _results.Add(CheckSaveAsync());
-            _results.Add(CheckLastSavedField());
-            _results.Add(CheckSaveDataSerializable());
-            _results.Add(CheckCloudSaveUICreated());
-            _results.Add(CheckSyncStatusUICreated());
-            _results.Add(CheckCloudAuthUICreated());
-            _results.Add(CheckAuthUpgrade());
-            _results.Add(CheckFacebookAuth());
-            _results.Add(CheckAndroidAuth());
-            _results.Add(CheckiOSAuth());
-            _results.Add(CheckProjectSettings());
-            _results.Add(CheckAccountDeletionCompliance());
-            _results.Add(CheckAccountDeletionUI());
-            _results.Add(CheckPrivacyAndDataDeletionUrls());
-            _results.Add(CheckSaveResetSupport());
-            _results.Add(CheckLegacyMigration());
+        public static List<AuditItem> RunAllChecks()
+        {
+            return new List<AuditItem>
+            {
+                CheckPackageInstalled(),
+                CheckConfigure(),
+                CheckInitAndSync(),
+                CheckSaveAsync(),
+                CheckLastSavedField(),
+                CheckSaveDataSerializable(),
+                CheckCloudSaveUICreated(),
+                CheckSyncStatusUICreated(),
+                CheckCloudAuthUICreated(),
+                CheckAuthUpgrade(),
+                CheckFacebookAuth(),
+                CheckAndroidAuth(),
+                CheckiOSAuth(),
+                CheckProjectSettings(),
+                CheckAccountDeletionCompliance(),
+                CheckAccountDeletionUI(),
+                CheckPrivacyAndDataDeletionUrls(),
+                CheckSaveResetSupport(),
+                CheckLegacyMigration()
+            };
+        }
+
+        /// <summary>
+        /// Command entry point for Unity CLI (`unity command menu`), Unity batchmode (`-executeMethod`),
+        /// CI/CD pipelines, and AI Agents to run the audit and output a structured Markdown/text report.
+        /// </summary>
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)", priority = 3)]
+        public static string RunAuditFromCli()
+        {
+            var results = RunAllChecks();
+            int passed = 0, failed = 0, info = 0;
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("================================================================================");
+            sb.AppendLine("                 CLOUD SAVE & STORE COMPLIANCE AUDIT REPORT                     ");
+            sb.AppendLine("================================================================================");
+
+            for (int i = 0; i < results.Count; i++)
+            {
+                var r = results[i];
+                string icon;
+                if (r.Status == AuditStatus.Passed) { icon = "[PASS] "; passed++; }
+                else if (r.Status == AuditStatus.Failed) { icon = "[FAIL] "; failed++; }
+                else { icon = "[INFO] "; info++; }
+
+                sb.AppendLine($"\n{i + 1,2}. {icon} {r.Title}");
+                if (!string.IsNullOrEmpty(r.Detail))
+                    sb.AppendLine($"    Detail: {r.Detail}");
+
+                if (r.Matches != null && r.Matches.Count > 0)
+                {
+                    sb.AppendLine("    Files:");
+                    foreach (var m in r.Matches)
+                        sb.AppendLine($"      - {m}");
+                }
+            }
+
+            sb.AppendLine("\n================================================================================");
+            sb.AppendLine($" SUMMARY: {results.Count} checks | {passed} Passed | {failed} Failed | {info} Warnings/Info");
+            if (failed > 0)
+                sb.AppendLine($" RESULT: FAILED ({failed} critical issues found!)");
+            else
+                sb.AppendLine(" RESULT: ALL MANDATORY CHECKS PASSED");
+            sb.AppendLine("================================================================================");
+
+            string report = sb.ToString();
+            Debug.Log(report);
+            Console.WriteLine(report);
+
+            try
+            {
+                string path = Path.GetFullPath("Library/CloudSaveAuditReport.txt");
+                File.WriteAllText(path, report);
+                string mdPath = Path.GetFullPath("Library/CloudSaveAuditReport.md");
+                File.WriteAllText(mdPath, report);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[CloudSaveAudit] Failed to write report file: " + ex.Message);
+            }
+
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(failed > 0 ? 1 : 0);
+            }
+
+            return report;
         }
 
         void DrawAuditItem(AuditItem item, int index, bool showFiles)
@@ -273,11 +347,24 @@ namespace Wagenheimer.CloudSave.Editor
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.Space(2);
-            if (Btn("Copy AI Audit Prompt", ColAccent))
+            EditorGUILayout.BeginHorizontal();
+            if (Btn("\u26a1 Copy Unity CLI Command", ColAccent))
+            {
+                EditorGUIUtility.systemCopyBuffer = "unity command menu --path \"Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)\"";
+                Debug.Log("[CloudSave] Unity CLI command copied to clipboard.");
+            }
+            if (Btn("\ud83d\udcbb Copy Batchmode Command", ColAccent))
+            {
+                string projectDir = Path.GetFullPath(".");
+                EditorGUIUtility.systemCopyBuffer = $"& \"$env:ProgramFiles\\Unity\\Hub\\Editor\\6000.5.8f1\\Editor\\Unity.exe\" -batchmode -quit -projectPath \"{projectDir}\" -executeMethod Wagenheimer.CloudSave.Editor.CloudSaveAudit.RunAuditFromCli -logFile -";
+                Debug.Log("[CloudSave] Batchmode command copied to clipboard.");
+            }
+            if (Btn("\ud83e\udd16 Copy AI Audit Prompt", ColAccent))
             {
                 EditorGUIUtility.systemCopyBuffer = GetAiPrompt();
-                Debug.Log("[CloudSave] AI audit prompt copied.");
+                Debug.Log("[CloudSave] AI audit prompt copied to clipboard.");
             }
+            EditorGUILayout.EndHorizontal();
         }
 
         static bool Btn(string label, Color color)
@@ -718,83 +805,51 @@ namespace Wagenheimer.CloudSave.Editor
 
         static string GetAiPrompt()
         {
-            return @"You are a Unity CloudSave integration auditor.
-Analyze the project files and output ONLY a markdown table.
-Do NOT add explanations beyond the table.
+            return @"You are a Unity Cloud Save and Store Compliance Auditor.
+Your goal is to verify that this Unity project implements Cloud Save (UGS) and meets 100% of store compliance guidelines (Apple Guideline 5.1.1(v), Google Play Data Safety, Meta Data Deletion).
 
-## Checks
+### Preferred Execution Method:
+If the Unity Editor is running, execute the automated audit via Unity CLI:
+```bash
+unity command menu --path ""Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)""
+```
+Then read the generated report at:
+`Library/CloudSaveAuditReport.txt`
 
-1. **Package installed**
-   - Check if ""com.wagenheimer.cloudsave"" in Packages/manifest.json
-   - OR package directory exists at Packages/com.wagenheimer.cloudsave/
-   - OR any .cs file references ""Wagenheimer.CloudSave""
+If Unity is not running, run via batchmode:
+```powershell
+& ""$env:ProgramFiles\Unity\Hub\Editor\<version>\Editor\Unity.exe"" -batchmode -quit -projectPath . -executeMethod Wagenheimer.CloudSave.Editor.CloudSaveAudit.RunAuditFromCli -logFile -
+```
 
-2. **CloudSync.Configure()**
-   - Search .cs files for ""CloudSync.Configure""
-   - If found, note the key used
+### Manual/Static Inspection Rules:
+1. **com.wagenheimer.cloudsave package installed**: Packages/manifest.json
+2. **CloudSync.Configure() called**: In initialization script with game identifier
+3. **CloudSync.InitAndSyncAsync() called**: At game startup or login
+4. **CloudSync.SaveAsync() called**: After saving game state locally
+5. **long LastSaved field**: Present in save data class
+6. **[System.Serializable]**: Save data class marked serializable
+7. **CloudSaveUI**: Present or handled by game UI
+8. **SyncStatusUI**: Present or handled by game UI
+9. **CloudAuthUI**: Present or handled by game UI
+10. **Auth upgrade**: Link methods called (Google Play Games, Apple Game Center, Facebook, etc.)
+11. **Android GPGS plugin**: Google Play Games SDK installed if targeting Android
+12. **iOS GameKit**: Apple.GameKit installed if targeting iOS
+13. **Unity Services**: Project linked in ProjectSettings
+14. **Apple 5.1.1(v) & Google Play Account Deletion**: Must call `CloudAuth.DeleteAccountAsync()` if login is supported
+15. **Account Deletion UI**: Explicit confirmation dialog before account deletion
+16. **Privacy Policy & Deletion URLs**: Public URLs defined for privacy and data deletion
+17. **Save Game Reset**: Support for `CloudSync.ResetProgressAsync()` (resets progress while keeping account linked)
+18. **Legacy Migration**: If migrating from PlayFab/Firebase, verify `CloudMigration.TryMigrateAsync()`
+19. **Sign-In Methods**: Anonymous auth + social logins configured in Unity Dashboard
 
-3. **CloudSync.InitAndSyncAsync()**
-   - Search .cs files for ""CloudSync.InitAndSyncAsync""
-
-4. **CloudSync.SaveAsync()**
-   - Search .cs files for ""CloudSync.SaveAsync""
-
-5. **long LastSaved field**
-   - Search .cs files for ""long LastSaved"" in [System.Serializable] classes
-
-6. **[System.Serializable] class**
-   - Search .cs files for a [System.Serializable] class for save data
-
-7. **CloudSaveUI.Create()** — Search .cs for ""CloudSaveUI.Create()""
-
-8. **SyncStatusUI.Create()** — Search .cs for ""SyncStatusUI.Create()""
-
-9. **CloudAuthUI.Create()** — Search .cs for ""CloudAuthUI.Create()""
-   - Also check if ""OnLinkRequested"" is wired
-
-10. **Auth upgrade (UGS link calls)**
-    - Search .cs for ""LinkGooglePlayGamesAsync"", ""LinkAppleGameCenterAsync"", ""LinkAppleAsync""
-    - Note which platform(s) are configured
-
-11. **Android GPGS plugin**
-    - Check Packages/manifest.json for ""com.google.play.games""
-    - Search Assets/ for GooglePlayGames DLLs or .cs references
-    - Search .cs for ""PlayGamesPlatform"" or ""GooglePlayGames""
-
-12. **iOS (Apple.GameKit)**
-    - Search .cs for ""Apple.GameKit"", ""GKLocalPlayer"", ""FetchItemsForIdentityVerification""
-    - Search for ""LinkAppleGameCenterAsync"" or ""LinkAppleAsync""
-    - (Note: Apple.GameKit is the official Unity package — this is the only supported option)
-
-13. **Unity Services**
-    - Check ProjectSettings/ProjectSettings.asset for ""CloudSave"" or ""Unity Gaming Services""
-
-14. **Dashboard Sign-In Methods (manual check)**
-    - Go to dashboard.unity3d.com \u2192 Authentication \u2192 Sign-In Methods
-    - Verify Anonymous is enabled
-    - If Android: verify Google Play Games is ON and has a Web client ID
-    - If iOS: verify Apple Game Center (and optionally Apple) is ON
-
-15. **Google Play Console (Android, manual check)**
-    - In play.google.com/console, verify Play Games Services is enabled
-    - Verify OAuth 2.0 Web client ID exists and matches Dashboard
-
-16. **Apple Developer (iOS, manual check)**
-    - Verify Game Center capability is enabled on the App ID
-    - If using Sign in with Apple: verify Service ID + Redirect URL
-
-## Output format
-
-| # | Item | Status | Files Found | Details/Action Needed |
-|---|------|--------|-------------|----------------------|
-| 1 | Package installed | ✅ / ❌ / ⚠️ | (paths) | (what to do) |
-| ... | ... | ... | ... | ... |";
+### Output Format:
+Output a markdown summary table showing Status (✅ / ❌ / ⚠️), Item Name, Found Files, and Required Actions.";
         }
     }
 
-    enum AuditStatus { Passed, Failed, Info }
+    public enum AuditStatus { Passed, Failed, Info }
 
-    class AuditItem
+    public class AuditItem
     {
         public AuditStatus Status { get; }
         public string Title { get; }

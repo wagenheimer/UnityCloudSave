@@ -111,7 +111,42 @@ namespace Wagenheimer.CloudSave.Editor
                 "Migrate players from legacy cloud saves to UGS seamlessly with 1 line of code:",
                 code: "await CloudMigration.TryMigrateAsync(\n    fetchLegacySaveAsync: async () => await FetchPlayFabSaveAsync(),\n    onApplyLegacyLocally: bytes => ApplySave(bytes));");
 
+            DrawCard(17, "AI & Unity CLI Automation (Verify via AI)",
+                "You or your AI Agent can run a 100% automated project audit via Unity CLI or Batchmode:\n\n" +
+                "1. If Unity Editor is running:\n" +
+                "   unity command menu --path \"Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)\"\n\n" +
+                "2. The audit runs all 19 checks and saves the report to:\n" +
+                "   Library/CloudSaveAuditReport.txt (and .md)\n\n" +
+                "Pass the command or prompt below to Antigravity, Claude, ChatGPT, Cursor, Copilot, etc.",
+                code: "unity command menu --path \"Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)\"");
+
             GUILayout.Space(10);
+
+            using (new GUILayout.HorizontalScope())
+            {
+                if (Btn("\u26a1 Copy Unity CLI Command", ColAccent))
+                {
+                    EditorGUIUtility.systemCopyBuffer = "unity command menu --path \"Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)\"";
+                    Debug.Log("[CloudSave] Unity CLI command copied.");
+                }
+                if (Btn("\ud83d\udcbb Copy Batchmode Command", ColAccent))
+                {
+                    string pDir = System.IO.Path.GetFullPath(".");
+                    EditorGUIUtility.systemCopyBuffer = $"& \"$env:ProgramFiles\\Unity\\Hub\\Editor\\6000.5.8f1\\Editor\\Unity.exe\" -batchmode -quit -projectPath \"{pDir}\" -executeMethod Wagenheimer.CloudSave.Editor.CloudSaveAudit.RunAuditFromCli -logFile -";
+                    Debug.Log("[CloudSave] Batchmode command copied.");
+                }
+                if (Btn("\ud83e\udd16 Copy AI Prompt", ColAccent))
+                {
+                    EditorGUIUtility.systemCopyBuffer =
+                        "Please run the Unity Cloud Save audit:\n" +
+                        "1. Execute: unity command menu --path \"Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)\"\n" +
+                        "2. Read: Library/CloudSaveAuditReport.txt\n" +
+                        "3. Review any failed checks or store compliance requirements and propose fixes.";
+                    Debug.Log("[CloudSave] AI prompt copied.");
+                }
+            }
+
+            GUILayout.Space(6);
 
             using (new GUILayout.HorizontalScope())
             {
