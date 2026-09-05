@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.15.3] - 2026-09-05
+
+### Fixed
+- update service accounts URL to /settings/service-accounts
+
 ## [4.15.2] - 2026-09-05
 
 ### Fixed
