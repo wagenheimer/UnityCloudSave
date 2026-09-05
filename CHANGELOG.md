@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.16.0] - 2026-09-05
+
+### Added
+- guided setup & verification hub foundation (Phase 0)
+
 ## [4.15.3] - 2026-09-05
 
 ### Fixed
