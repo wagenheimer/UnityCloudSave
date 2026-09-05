@@ -141,28 +141,36 @@ namespace Wagenheimer.CloudSave.Editor
 
         public static List<AuditItem> RunAllChecks()
         {
-            return new List<AuditItem>
+            try
             {
-                CheckPackageInstalled(),
-                CheckConfigure(),
-                CheckInitAndSync(),
-                CheckSaveAsync(),
-                CheckLastSavedField(),
-                CheckSaveDataSerializable(),
-                CheckCloudSaveUICreated(),
-                CheckSyncStatusUICreated(),
-                CheckCloudAuthUICreated(),
-                CheckAuthUpgrade(),
-                CheckFacebookAuth(),
-                CheckAndroidAuth(),
-                CheckiOSAuth(),
-                CheckProjectSettings(),
-                CheckAccountDeletionCompliance(),
-                CheckAccountDeletionUI(),
-                CheckPrivacyAndDataDeletionUrls(),
-                CheckSaveResetSupport(),
-                CheckLegacyMigration()
-            };
+                BuildFileCache();
+                return new List<AuditItem>
+                {
+                    CheckPackageInstalled(),
+                    CheckConfigure(),
+                    CheckInitAndSync(),
+                    CheckSaveAsync(),
+                    CheckLastSavedField(),
+                    CheckSaveDataSerializable(),
+                    CheckCloudSaveUICreated(),
+                    CheckSyncStatusUICreated(),
+                    CheckCloudAuthUICreated(),
+                    CheckAuthUpgrade(),
+                    CheckFacebookAuth(),
+                    CheckAndroidAuth(),
+                    CheckiOSAuth(),
+                    CheckProjectSettings(),
+                    CheckAccountDeletionCompliance(),
+                    CheckAccountDeletionUI(),
+                    CheckPrivacyAndDataDeletionUrls(),
+                    CheckSaveResetSupport(),
+                    CheckLegacyMigration()
+                };
+            }
+            finally
+            {
+                ClearFileCache();
+            }
         }
 
         /// <summary>
@@ -484,22 +492,15 @@ namespace Wagenheimer.CloudSave.Editor
 
         static AuditItem CheckSaveDataSerializable()
         {
-            var serializables = new List<string>();
-            var allCs = Directory.EnumerateFiles(Path.GetFullPath("Assets"), "*.cs", SearchOption.AllDirectories);
-            foreach (var f in allCs)
-            {
-                try
-                {
-                    var text = File.ReadAllText(f);
-                    if (text.Contains("[System.Serializable]") || text.Contains("[Serializable]"))
-                        serializables.Add(Path.GetFileName(f));
-                }
-                catch { }
-            }
             var matches = FindInCsFiles("\\[(System\\.)?Serializable\\]", true);
             if (matches.Count > 0)
+            {
+                var saveClasses = matches.Where(m => m.IndexOf("save", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                                                     m.IndexOf("player", StringComparison.OrdinalIgnoreCase) >= 0).Take(5).ToList();
+                var displayList = saveClasses.Count > 0 ? saveClasses : matches.Take(5).ToList();
                 return Pass("Serializable class found",
-                    $"Found {serializables.Count} [Serializable] class(es)", matches);
+                    $"Found {matches.Count} [Serializable] class(es)", displayList);
+            }
             return Info("No [Serializable] class found",
                 "CloudSave uses JsonUtility which requires [Serializable] on your save class.", matches);
         }
@@ -754,30 +755,50 @@ namespace Wagenheimer.CloudSave.Editor
 
         // ── Helpers ───────────────────────────────────────────────────────
 
-        static List<string> FindInCsFiles(string pattern, bool withPaths)
-        {
-            var results = new List<string>();
-            var assetsDir = new DirectoryInfo(Path.GetFullPath("Assets"));
-            if (!assetsDir.Exists) return results;
+        static Dictionary<string, string[]> _csFileCache = null;
 
-            var regex = new Regex(pattern, RegexOptions.Compiled);
+        static void BuildFileCache()
+        {
+            _csFileCache = new Dictionary<string, string[]>();
+            var assetsDir = new DirectoryInfo(Path.GetFullPath("Assets"));
+            if (!assetsDir.Exists) return;
+
             foreach (var file in assetsDir.GetFiles("*.cs", SearchOption.AllDirectories))
             {
                 try
                 {
-                    var lines = File.ReadAllLines(file.FullName);
-                    for (int i = 0; i < lines.Length; i++)
-                    {
-                        if (regex.IsMatch(lines[i]))
-                        {
-                            var relPath = GetRelativePath(file.FullName);
-                            results.Add(withPaths
-                                ? $"{relPath}:{i + 1}  {lines[i].Trim()}"
-                                : $"{relPath}:{i + 1}");
-                        }
-                    }
+                    var relPath = GetRelativePath(file.FullName);
+                    _csFileCache[relPath] = File.ReadAllLines(file.FullName);
                 }
                 catch { }
+            }
+        }
+
+        static void ClearFileCache()
+        {
+            _csFileCache = null;
+        }
+
+        static List<string> FindInCsFiles(string pattern, bool withPaths)
+        {
+            var results = new List<string>();
+            if (_csFileCache == null)
+                BuildFileCache();
+
+            var regex = new Regex(pattern, RegexOptions.Compiled);
+            foreach (var kvp in _csFileCache)
+            {
+                var relPath = kvp.Key;
+                var lines = kvp.Value;
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    if (regex.IsMatch(lines[i]))
+                    {
+                        results.Add(withPaths
+                            ? $"{relPath}:{i + 1}  {lines[i].Trim()}"
+                            : $"{relPath}:{i + 1}");
+                    }
+                }
             }
 
             return results;
