@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.15.0] - 2026-09-05
+
+### Added
+- update UGS URLs to cloud.unity.com player-authentication/identity-providers
+
 ## [4.14.0] - 2026-09-05
 
 ### Added
