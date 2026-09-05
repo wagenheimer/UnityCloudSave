@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.15.1] - 2026-09-05
+
+### Changed
+- docs/ui: clarify Service Accounts vs Secrets tab with direct links and instructions
+
 ## [4.15.0] - 2026-09-05
 
 ### Added
