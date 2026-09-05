@@ -179,9 +179,16 @@ namespace Wagenheimer.CloudSave.Editor.Setup
             EditorGUI.DrawRect(new Rect(rect.x - 2, rect.y - 2, 3, rect.height + 4), col);
             GUILayout.Space(3);
 
+            var tag = e.Definition.Obligation switch
+            {
+                Obligation.Optional => "  (optional)",
+                Obligation.Recommended => "  (recommended)",
+                _ => "",
+            };
+
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button((open ? "▾ " : "▸ ") + glyph + "  " + e.Definition.Title,
+                if (GUILayout.Button((open ? "▾ " : "▸ ") + glyph + "  " + e.Definition.Title + tag,
                         new GUIStyle(EditorStyles.label) { fontSize = 12, normal = { textColor = col }, alignment = TextAnchor.MiddleLeft },
                         GUILayout.ExpandWidth(true)))
                 {

@@ -3,20 +3,26 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using Wagenheimer.CloudSave.Editor.Setup.Detectors;
 
 namespace Wagenheimer.CloudSave.Editor.Setup
 {
     /// <summary>
-    /// Ambient facts a detector may need. Kept tiny for Phase 0; grows as detectors are added.
+    /// Ambient facts detectors share for one recompute: the project root and a one-shot cached
+    /// scan of Assets/**/*.cs (so the many code-presence detectors read the disk only once).
     /// </summary>
     public sealed class SetupContext
     {
         /// <summary>Absolute path to the consumer project root (parent of Assets/ and Packages/).</summary>
         public string ProjectRoot { get; }
 
-        public SetupContext(string projectRoot)
+        /// <summary>Cached line scan of the project's C# — never null (empty when Assets/ is absent).</summary>
+        public CodeScan Code { get; }
+
+        public SetupContext(string projectRoot, CodeScan code = null)
         {
             ProjectRoot = projectRoot;
+            Code = code ?? CodeScan.Build(projectRoot);
         }
 
         public static SetupContext ForCurrentProject()
