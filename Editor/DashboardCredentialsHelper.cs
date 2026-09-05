@@ -98,12 +98,12 @@ namespace Wagenheimer.CloudSave.Editor
                 if (!string.IsNullOrEmpty(genesisId) && long.TryParse(genesisId, out _))
                 {
                     data.DashboardUrl = $"https://cloud.unity.com/organizations/{genesisId}/projects/{data.CloudProjectId}/player-authentication/identity-providers";
-                    data.ServiceAccountsUrl = $"https://cloud.unity.com/organizations/{genesisId}/administration/service-accounts";
+                    data.ServiceAccountsUrl = $"https://cloud.unity.com/organizations/{genesisId}/settings/service-accounts";
                 }
                 else
                 {
                     data.DashboardUrl = $"https://cloud.unity.com/projects/{data.CloudProjectId}/player-authentication/identity-providers";
-                    data.ServiceAccountsUrl = "https://cloud.unity.com/administration/service-accounts";
+                    data.ServiceAccountsUrl = "https://cloud.unity.com/settings/service-accounts";
                 }
             }
             else
@@ -253,7 +253,7 @@ namespace Wagenheimer.CloudSave.Editor
                         if (!string.IsNullOrEmpty(_cachedData.OrganizationId) && long.TryParse(_cachedData.OrganizationId, out _))
                         {
                             _cachedData.DashboardUrl = $"https://cloud.unity.com/organizations/{_cachedData.OrganizationId}/projects/{_cachedData.CloudProjectId}/player-authentication/identity-providers";
-                            _cachedData.ServiceAccountsUrl = $"https://cloud.unity.com/organizations/{_cachedData.OrganizationId}/administration/service-accounts";
+                            _cachedData.ServiceAccountsUrl = $"https://cloud.unity.com/organizations/{_cachedData.OrganizationId}/settings/service-accounts";
                         }
                     }
                 }
@@ -277,7 +277,7 @@ namespace Wagenheimer.CloudSave.Editor
             // Automated API Section
             DrawSection("2. Automated API Setup: Service Accounts", () =>
             {
-                EditorGUILayout.HelpBox("⚠️ IMPORTANT:\n• Do NOT use 'Secrets' in the project sidebar (that is for Cloud Code variables).\n• Service Accounts are under ORGANIZATION Administration.\n\nBreadcrumbs in Dashboard: Top-left Organization ➔ Administration ➔ Service accounts", MessageType.Warning);
+                EditorGUILayout.HelpBox("⚠️ IMPORTANT:\n• Do NOT use 'Secrets' in the project sidebar (that is for Cloud Code variables).\n• Service Accounts are under Organization Settings.\n\nBreadcrumbs in Dashboard: Organization ➔ Settings ➔ Service accounts", MessageType.Warning);
 
                 EditorGUILayout.SelectableLabel(_cachedData.ServiceAccountsUrl, EditorStyles.textField, GUILayout.Height(20));
 
