@@ -174,10 +174,18 @@ namespace Wagenheimer.CloudSave.Editor
         }
 
         /// <summary>
-        /// Command entry point for Unity CLI (`unity command menu`), Unity batchmode (`-executeMethod`),
-        /// CI/CD pipelines, and AI Agents to run the audit and output a structured Markdown/text report.
+        /// Menu item to run the audit and output the CLI report to console and Library file.
         /// </summary>
         [MenuItem("Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)", priority = 3)]
+        public static void RunAuditMenuItem()
+        {
+            RunAuditFromCli();
+        }
+
+        /// <summary>
+        /// Command entry point for Unity CLI, batchmode (`-executeMethod`),
+        /// CI/CD pipelines, and AI Agents to run the audit and output a structured Markdown/text report.
+        /// </summary>
         public static string RunAuditFromCli()
         {
             var results = RunAllChecks();
