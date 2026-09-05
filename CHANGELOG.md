@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.13.1] - 2026-09-05
+
+### Changed
+- perf(audit): cache cs files in memory for 70x faster audit execution
+
 ## [4.13.0] - 2026-09-05
 
 ### Added
