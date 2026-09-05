@@ -1,4 +1,4 @@
-﻿using UnityEditor;
+using UnityEditor;
 using UnityEngine;
 using Wagenheimer.CloudSave;
 
@@ -105,6 +105,11 @@ namespace Wagenheimer.CloudSave.Editor
             {
                 if (GUILayout.Button("Fire OnLinked"))          CloudAuth.TestFireLinked(CloudAuthProvider.GooglePlayGames);
                 if (GUILayout.Button("Fire AccountSwitched"))   CloudAuth.TestFireAccountSwitched(CloudAuthProvider.GooglePlayGames);
+            }
+            using (new GUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Fire OnSaveReset"))        CloudSync.TestFireSaveReset();
+                if (GUILayout.Button("Fire OnAccountDeleted"))  CloudAuth.TestFireAccountDeleted();
             }
 
             GUILayout.Space(10);

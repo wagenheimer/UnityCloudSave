@@ -49,6 +49,9 @@ namespace Wagenheimer.CloudSave
         /// </summary>
         public static event Action<CloudAuthProvider> OnAccountSwitched;
 
+        /// <summary>Fires after the current account has been deleted via <see cref="DeleteAccountAsync"/>.</summary>
+        public static event Action OnAccountDeleted;
+
         // ── Init ─────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -284,6 +287,7 @@ namespace Wagenheimer.CloudSave
                 _provider = CloudAuthProvider.Anonymous;
                 IsReady = false;
                 Debug.Log("[CloudAuth] Account deleted successfully.");
+                OnAccountDeleted?.Invoke();
                 return true;
             }
             catch (Exception e)
@@ -291,6 +295,18 @@ namespace Wagenheimer.CloudSave
                 Debug.LogWarning($"[CloudAuth] DeleteAccount failed: {e.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Copies the current PlayerId to the system clipboard. Returns false if PlayerId is null or empty.
+        /// </summary>
+        public static bool CopyPlayerIdToClipboard()
+        {
+            var id = PlayerId;
+            if (string.IsNullOrEmpty(id)) return false;
+            GUIUtility.systemCopyBuffer = id;
+            Debug.Log($"[CloudAuth] PlayerId copied to clipboard: {id}");
+            return true;
         }
 
         /// <summary>
@@ -380,6 +396,9 @@ namespace Wagenheimer.CloudSave
 
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
         internal static void TestFireAccountSwitched(CloudAuthProvider provider) => OnAccountSwitched?.Invoke(provider);
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        internal static void TestFireAccountDeleted() => OnAccountDeleted?.Invoke();
 #endif
     }
 }

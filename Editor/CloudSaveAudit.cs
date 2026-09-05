@@ -151,6 +151,11 @@ namespace Wagenheimer.CloudSave.Editor
             _results.Add(CheckAndroidAuth());
             _results.Add(CheckiOSAuth());
             _results.Add(CheckProjectSettings());
+            _results.Add(CheckAccountDeletionCompliance());
+            _results.Add(CheckAccountDeletionUI());
+            _results.Add(CheckPrivacyAndDataDeletionUrls());
+            _results.Add(CheckSaveResetSupport());
+            _results.Add(CheckLegacyMigration());
         }
 
         void DrawAuditItem(AuditItem item, int index, bool showFiles)
@@ -243,6 +248,10 @@ namespace Wagenheimer.CloudSave.Editor
             EditorGUILayout.LabelField("  \u2022 Verify Sign-In Methods are ENABLED in Dashboard \u2192 Authentication \u2192 Sign-In Methods",
                 detailStyle);
             EditorGUILayout.LabelField("    Anonymous: ON (default) | GPGS: ON + Web client ID | Apple Game Center: ON",
+                detailStyle);
+            EditorGUILayout.LabelField("  \u2022 Google Play Data Safety Form: Register your public Account Deletion URL in Play Console",
+                detailStyle);
+            EditorGUILayout.LabelField("  \u2022 Meta Developer Portal: Register Data Deletion Request/Instructions URL under App Settings > Basic",
                 detailStyle);
             EditorGUILayout.LabelField("  \u2022 Test real sync: Build & run on device, save, reinstall, check if cloud save loads",
                 detailStyle);
@@ -567,6 +576,93 @@ namespace Wagenheimer.CloudSave.Editor
             return Info("Unity Services setup unclear",
                 "Could not auto-verify. Open Edit \u2192 Project Settings \u2192 Services and confirm project is linked.",
                 matches);
+        }
+
+        static AuditItem CheckAccountDeletionCompliance()
+        {
+            var matches = FindInCsFiles("CloudAuth\\.DeleteAccountAsync|DeleteAccountAsync", true);
+            if (matches.Count > 0)
+            {
+                return Pass("Account Deletion (Apple 5.1.1(v) & Google Play)",
+                    "Found DeleteAccountAsync call. Complies with store account deletion requirements.", matches);
+            }
+
+            var authMatches = FindInCsFiles("LinkGooglePlayGamesAsync|LinkApple|LinkFacebook|FB\\.LogIn", false);
+            if (authMatches.Count > 0)
+            {
+                return Fail("MANDATORY: Account Deletion NOT implemented",
+                    "Apple Guideline 5.1.1(v) and Google Play MANDATE an in-app account deletion mechanism " +
+                    "for any game supporting player sign-in or social linking.\n" +
+                    "Fix: Provide an in-game option calling await CloudAuth.DeleteAccountAsync();",
+                    authMatches);
+            }
+
+            return Info("Account Deletion not detected",
+                "Recommended: Call CloudAuth.DeleteAccountAsync(). Required by Apple & Google Play if your game supports accounts or social logins.",
+                matches);
+        }
+
+        static AuditItem CheckAccountDeletionUI()
+        {
+            var matches = FindInCsFiles("DeleteConfirmation|btRemoveAccount|DeleteAccount|accountremoved|ExcluirConta|DeleteAccountTitle", true);
+            if (matches.Count > 0)
+            {
+                return Pass("Account Deletion UI / Confirmation found",
+                    "In-app UI with confirmation safeguards for account deletion detected.", matches);
+            }
+
+            return Info("Account Deletion UI confirmation not detected",
+                "Ensure your settings/account screen provides a clear 'Delete Account' button with confirmation dialog (e.g. typing DELETE).",
+                matches);
+        }
+
+        static AuditItem CheckPrivacyAndDataDeletionUrls()
+        {
+            var matches = FindInCsFiles("Application\\.OpenURL.*(policy|privacy|terms|termos|privacidade|delete)", true);
+            if (matches.Count > 0)
+            {
+                return Pass("Privacy Policy / Terms URL referenced",
+                    "Found privacy policy or deletion instructions link in code.", matches);
+            }
+
+            return Info("Privacy Policy / Deletion URL not detected in code",
+                "Google Play (Data Safety Form) and Meta Developer Portal require public HTTPS URLs " +
+                "for Privacy Policy and User Data Deletion Instructions.", matches);
+        }
+
+        static AuditItem CheckSaveResetSupport()
+        {
+            var matches = FindInCsFiles("ResetProgressAsync|DeleteCloudSaveAsync|ResetGameProgress|ResetProgress", true);
+            if (matches.Count > 0)
+            {
+                return Pass("Save Game Reset support detected",
+                    "Game implements progress wipe / reset functionality without destroying account identity.", matches);
+            }
+
+            return Info("Save Game Reset not detected",
+                "Optional but recommended for player UX: CloudSync.ResetProgressAsync(onClearLocalSave);",
+                matches);
+        }
+
+        static AuditItem CheckLegacyMigration()
+        {
+            var migrationMatches = FindInCsFiles("CloudMigration\\.TryMigrateAsync", true);
+            if (migrationMatches.Count > 0)
+            {
+                return Pass("Legacy Cloud Migration configured",
+                    "Using CloudMigration.TryMigrateAsync to seamlessly import legacy saves into UGS.", migrationMatches);
+            }
+
+            var legacyMatches = FindInCsFiles("PlayFabClientAPI|PlayFab|Firebase", true);
+            if (legacyMatches.Count > 0)
+            {
+                return Info("Legacy backend detected without CloudMigration",
+                    "Found PlayFab / Firebase references. Use CloudMigration.TryMigrateAsync to migrate existing players to UGS automatically.",
+                    legacyMatches);
+            }
+
+            return Pass("Pure Unity Cloud Save architecture",
+                "No legacy backends detected. Game operates cleanly on UGS.", new List<string>());
         }
 
         // ── Helpers ───────────────────────────────────────────────────────

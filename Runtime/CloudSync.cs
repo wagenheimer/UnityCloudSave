@@ -45,6 +45,9 @@ namespace Wagenheimer.CloudSave
         /// <summary>Fires when a sync operation completes, with the outcome.</summary>
         public static event Action<CloudSyncResult> OnSyncCompleted;
 
+        /// <summary>Fires when save progress has been reset locally and on the cloud.</summary>
+        public static event Action OnSaveReset;
+
         /// <summary>
         /// Optional async delegate called when the cloud save is newer than the local one.
         /// Return <see cref="CloudConflictChoice.UseCloud"/> to apply the cloud save,
@@ -146,7 +149,68 @@ namespace Wagenheimer.CloudSave
             }
         }
 
-        private static async Task<(byte[] bytes, long timestamp)> LoadCloudDataAsync()
+        /// <summary>
+        /// Deletes the cloud save slot keys (_dataKey and _tsKey) from UGS Cloud Save.
+        /// </summary>
+        public static async Task<bool> DeleteCloudSaveAsync()
+        {
+            if (!IsAvailable) return false;
+            try
+            {
+                await CloudSaveService.Instance.Data.Player.DeleteAsync(_dataKey);
+                await CloudSaveService.Instance.Data.Player.DeleteAsync(_tsKey);
+                Debug.Log("[CloudSync] Cloud save deleted.");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudSync] DeleteCloudSave failed: {e.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Resets game progress locally via <paramref name="onClearLocalSave"/>, and updates
+        /// or wipes the cloud save accordingly.
+        ///
+        /// If <paramref name="getCleanSaveBytes"/> is provided, the clean save is uploaded with
+        /// a fresh UTC timestamp (DateTime.UtcNow.Ticks), ensuring any other devices sync to this reset.
+        /// If null, the cloud save keys are deleted.
+        /// Fires <see cref="OnSaveReset"/>.
+        /// </summary>
+        public static async Task<bool> ResetProgressAsync(Action onClearLocalSave, Func<byte[]> getCleanSaveBytes = null)
+        {
+            try
+            {
+                onClearLocalSave?.Invoke();
+
+                if (getCleanSaveBytes != null)
+                {
+                    byte[] cleanBytes = getCleanSaveBytes();
+                    long newTs = DateTime.UtcNow.Ticks;
+                    await SaveAsync(cleanBytes, newTs);
+                }
+                else
+                {
+                    await DeleteCloudSaveAsync();
+                }
+
+                OnSaveReset?.Invoke();
+                Debug.Log("[CloudSync] ResetProgress completed successfully.");
+                return true;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudSync] ResetProgress failed: {e.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Loads raw bytes and timestamp directly from UGS without triggering conflict resolution.
+        /// Used internally by CloudSync and CloudMigration.
+        /// </summary>
+        public static async Task<(byte[] bytes, long timestamp)> LoadRawCloudDataAsync()
         {
             try
             {
@@ -168,12 +232,17 @@ namespace Wagenheimer.CloudSave
             }
         }
 
+        private static Task<(byte[] bytes, long timestamp)> LoadCloudDataAsync() => LoadRawCloudDataAsync();
+
 #if UNITY_EDITOR
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
         internal static void TestFireSyncStarted() => OnSyncStarted?.Invoke();
 
         [System.Diagnostics.Conditional("UNITY_EDITOR")]
         internal static void TestFireSyncCompleted(CloudSyncResult result) => OnSyncCompleted?.Invoke(result);
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        internal static void TestFireSaveReset() => OnSaveReset?.Invoke();
 #endif
     }
 }

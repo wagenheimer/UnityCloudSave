@@ -1,9 +1,26 @@
 # Changelog
 
+## [4.12.0] - 2026-09-05
+
+### Added
+- `CloudMigration` universal class (`TryMigrateAsync`) for seamless import from legacy backends (PlayFab, Firebase, custom servers) into UGS Cloud Save.
+- `CloudSync.DeleteCloudSaveAsync()` to delete cloud save keys from UGS.
+- `CloudSync.ResetProgressAsync(onClearLocalSave, getCleanSaveBytes)` for progress reset preserving linked account identity.
+- `CloudSync.OnSaveReset` event fired on progress reset.
+- `CloudSync.LoadRawCloudDataAsync()` exposed for raw data queries without conflict flow.
+- `CloudAuth.OnAccountDeleted` event fired on account deletion.
+- `CloudAuth.CopyPlayerIdToClipboard()` utility method.
+- Complete Store Compliance audit checks in `CloudSaveAudit`: Apple Guideline 5.1.1(v) In-App Deletion, Google Play Data Safety URL check, Meta Data Deletion URL, Save Game Reset check, and Legacy Migration detector.
+- Integration Guide cards for Account Deletion compliance, Save Reset, and Legacy Migration.
+- Localized strings for Account Deletion, Reset Progress, and Store Compliance.
+
+### Fixed
+- Replaced hand-crafted UI prefabs (`CloudAuthUI.prefab`, `SyncStatusUI.prefab`, `CloudSaveUI.prefab`) in `Runtime/Resources/` with properly serialized Unity prefabs using 64-bit file IDs, resolving "unexpected file IDs and is likely to be corrupt" warnings upon project import.
+
 ## [4.11.0] - 2026-09-02
 
 ### Added
-- Facebook and Google sign-in providers, account deletion, sign-out and unlink (4.10.0)
+- Facebook and Google sign-in providers, account deletion, sign-out and unlink.
 
 ## [4.10.0] - 2026-09-01
 

@@ -52,6 +52,21 @@ namespace Wagenheimer.CloudSave
             "cloudsave.auth_btn_apple"      => "Sign in with Apple Game Center",
             "cloudsave.auth_btn_signin_apple" => "Sign in with Apple",
             "cloudsave.auth_btn_close"      => "Not now",
+            "cloudsave.account_id"          => "Account ID: {0}",
+            "cloudsave.btn_copy_id"         => "Copy ID",
+            "cloudsave.id_copied"           => "Copied to clipboard!",
+            "cloudsave.delete_account_title" => "Delete Account",
+            "cloudsave.delete_account_warning" => "Permanently delete your account and all cloud save data? This cannot be undone.",
+            "cloudsave.delete_account_confirm" => "Type DELETE to confirm",
+            "cloudsave.btn_delete_account"  => "Delete Account",
+            "cloudsave.account_deleted"     => "Account successfully deleted.",
+            "cloudsave.reset_progress_title" => "Reset Progress",
+            "cloudsave.reset_progress_warning" => "Reset all game progress? Levels and items will be reset, but your account will remain linked.",
+            "cloudsave.btn_reset_progress"  => "Reset Progress",
+            "cloudsave.progress_reset"      => "Progress reset successfully.",
+            "cloudsave.btn_cancel"          => "Cancel",
+            "cloudsave.privacy_policy"      => "Privacy Policy",
+            "cloudsave.terms_of_service"    => "Terms of Service",
             _ => key
         };
 
@@ -92,6 +107,21 @@ namespace Wagenheimer.CloudSave
         public static string AuthBtnApple()           => Get("cloudsave.auth_btn_apple");
         public static string AuthBtnSignInApple()     => Get("cloudsave.auth_btn_signin_apple");
         public static string AuthBtnClose()           => Get("cloudsave.auth_btn_close");
+        public static string AccountId(string id)     => string.Format(Get("cloudsave.account_id"), id);
+        public static string BtnCopyId()              => Get("cloudsave.btn_copy_id");
+        public static string IdCopied()               => Get("cloudsave.id_copied");
+        public static string DeleteAccountTitle()     => Get("cloudsave.delete_account_title");
+        public static string DeleteAccountWarning()   => Get("cloudsave.delete_account_warning");
+        public static string DeleteAccountConfirm()   => Get("cloudsave.delete_account_confirm");
+        public static string BtnDeleteAccount()       => Get("cloudsave.btn_delete_account");
+        public static string AccountDeleted()         => Get("cloudsave.account_deleted");
+        public static string ResetProgressTitle()     => Get("cloudsave.reset_progress_title");
+        public static string ResetProgressWarning()   => Get("cloudsave.reset_progress_warning");
+        public static string BtnResetProgress()       => Get("cloudsave.btn_reset_progress");
+        public static string ProgressReset()          => Get("cloudsave.progress_reset");
+        public static string BtnCancel()              => Get("cloudsave.btn_cancel");
+        public static string PrivacyPolicy()          => Get("cloudsave.privacy_policy");
+        public static string TermsOfService()         => Get("cloudsave.terms_of_service");
     }
 
     public enum SyncStatus

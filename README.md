@@ -212,11 +212,14 @@ CloudAuth.OnLinked += provider => Debug.Log($"Linked to {provider}");
 | `Configure(slotName)` | Sets the cloud key prefix. Call once at startup. |
 | `InitAndSyncAsync(localTs, onCloudNewer)` | Init auth + pulls cloud save if newer. Fire-and-forget safe. |
 | `SaveAsync(bytes, timestamp)` | Uploads save. No-op when offline. Fire-and-forget safe. |
+| `DeleteCloudSaveAsync()` | Deletes cloud save slot keys from UGS. |
+| `ResetProgressAsync(onClearLocal, getCleanBytes)` | Wipes gameplay progress while preserving linked account identity. |
 | `IsAvailable` | True once auth + init are complete. |
 | `DataKey` | Current data key prefix used for cloud storage. |
 | `LastResult` | `CloudSyncResult?` — result of the most recent sync, or null before first sync. |
 | `OnSyncStarted` | `event Action` — fires when sync begins. |
 | `OnSyncCompleted` | `event Action<CloudSyncResult>` — fires with the result. |
+| `OnSaveReset` | `event Action` — fires when save progress is reset. |
 | `ConflictResolver` | `Func<CloudConflictData, Task<CloudConflictChoice>>` — override conflict UI. |
 
 ### `CloudSaveUI`
@@ -270,12 +273,17 @@ The overlay also responds to clicks — tapping outside the card dismisses the d
 | `LinkGooglePlayGamesAsync(code)` | Android: link/sign-in via GPGS server auth code. |
 | `LinkAppleAsync(idToken)` | iOS: link/sign-in via Sign in with Apple identity token. |
 | `LinkAppleGameCenterAsync(...)` | iOS: link/sign-in via Game Center signature. |
+| `LinkFacebookAsync(accessToken)` | Link / sign-in with Facebook access token. |
+| `LinkGoogleAsync(idToken)` | Link / sign-in with Google ID token. |
+| `DeleteAccountAsync()` | Deletes player account and cloud data. Required for Apple 5.1.1(v) & Google Play. |
+| `CopyPlayerIdToClipboard()` | Copies PlayerId to system clipboard. |
 | `IsReady` | True once initialized and signed in. |
 | `IsAnonymous` | Signed in but no linked provider. |
 | `IsLinked` | Linked to an external provider. |
 | `Provider` | `CloudAuthProvider` enum. |
 | `PlayerId` | Unity player ID (stable, preserved after linking). |
 | `OnLinked` | `event Action<CloudAuthProvider>` fired on link success. |
+| `OnAccountDeleted` | `event Action` fired when account is deleted. |
 
 ### `CloudLinkResult`
 
@@ -478,6 +486,72 @@ CloudSync.ConflictResolver = async data =>
 When `ConflictResolver` is `null` (default), cloud always wins.
 
 ---
+
+## Resetting Progress vs. Deleting Account
+
+| Action | API | Account / Login | Remote Cloud Save | Store Compliance |
+|---|---|---|---|---|
+| **Reset Progress** | `CloudSync.ResetProgressAsync(onClearLocal, getCleanBytes)` | **Kept** (GPGS, Game Center, Facebook stay linked) | Clean save uploaded or slot deleted | Gameplay feature |
+| **Delete Account** | `CloudAuth.DeleteAccountAsync()` | **Destroyed** (UGS account deleted) | Completely removed from cloud | **Mandatory** by Apple & Google |
+
+```csharp
+// 1. Reset gameplay progress (e.g. from Settings screen)
+await CloudSync.ResetProgressAsync(
+    onClearLocalSave: () => {
+        saveData.LevelsCompleted = 1;
+        saveData.Coins = 0;
+        File.WriteAllText(localPath, JsonUtility.ToJson(saveData));
+    },
+    getCleanSaveBytes: () => Encoding.UTF8.GetBytes(JsonUtility.ToJson(saveData))
+);
+
+// 2. Full Account Deletion (e.g. from Account screen with "DELETE" confirmation)
+bool deleted = await CloudAuth.DeleteAccountAsync();
+if (deleted) {
+    File.Delete(localPath);
+    // return to title screen
+}
+```
+
+---
+
+## Store Compliance (Apple, Google Play & Meta)
+
+### Apple App Store — Guideline 5.1.1(v) (MANDATORY)
+If your game allows players to log in with Apple, Game Center, Facebook, or Google, you **must** provide an in-app option to delete the account and all remote data. Call `CloudAuth.DeleteAccountAsync()`.
+
+### Google Play — Account Deletion & Data Safety Form (MANDATORY)
+1. Provide an in-app deletion option (same as Apple).
+2. Register a public web URL (HTTPS) in the **Data Safety** section of your Google Play Console listing, where players can request account deletion even if the app is uninstalled.
+
+### Meta / Facebook — Data Deletion Instructions (MANDATORY)
+In the Meta Developer Portal (**App Settings > Basic**), provide either a Data Deletion Callback URL or a Data Deletion Instructions URL directing players to your in-app button or support email.
+
+---
+
+## Legacy Cloud Save Migration (`CloudMigration`)
+
+Migrate existing players from legacy cloud backends (PlayFab, Firebase, custom servers) to UGS with 1 line:
+
+```csharp
+var result = await CloudMigration.TryMigrateAsync(
+    fetchLegacySaveAsync: async () => {
+        // Fetch raw bytes and long timestamp from your legacy SDK:
+        byte[] legacyBytes = await FetchLegacyBytesAsync();
+        long legacyTimestamp = await FetchLegacyTimestampAsync();
+        return (legacyBytes, legacyTimestamp);
+    },
+    onApplyLegacyLocally: bytes => {
+        // Apply legacy save to local game:
+        saveData = JsonUtility.FromJson<MySaveData>(Encoding.UTF8.GetString(bytes));
+    }
+);
+
+if (result.Status == CloudMigrationStatus.Migrated || result.Status == CloudMigrationStatus.UgsAlreadyNewer) {
+    // Mark migration completed so you don't check legacy backend again:
+    saveData.LegacyMigrated = true;
+}
+```
 
 ---
 

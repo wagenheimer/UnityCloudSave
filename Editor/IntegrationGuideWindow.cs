@@ -93,7 +93,23 @@ namespace Wagenheimer.CloudSave.Editor
                 "Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Open Test Window\nSimulate sync, toasts, conflicts and events \u2014 no internet needed.");
 
             DrawCard(13, "Audit Integration",
-                "Run a full project scan: Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Audit Integration\nValidates package, code, UIs, auth calls, platform plugins, AND sign-in methods.");
+                "Run a full project scan: Tools \u2192 Wagenheimer \u2192 Cloud Save \u2192 Audit Integration\nValidates package, code, UIs, auth calls, platform plugins, AND store compliance.");
+
+            DrawCard(14, "Store Compliance: Account Deletion (MANDATORY)",
+                "Apple Guideline 5.1.1(v) & Google Play MANDATE an in-app Account Deletion flow if you offer logins.\n\n" +
+                "1. Provide an in-game button calling CloudAuth.DeleteAccountAsync()\n" +
+                "2. Google Play: register your public Account Deletion web URL in Play Console Data Safety form\n" +
+                "3. Meta: register your Data Deletion URL in Facebook Developer App Settings",
+                code: "// In your Account / Settings dialog:\npublic async void OnClickDeleteAccount()\n{\n    bool success = await CloudAuth.DeleteAccountAsync();\n    if (success)\n    {\n        ClearLocalGameData();\n        ReturnToTitleScreen();\n    }\n}");
+
+            DrawCard(15, "Reset Progress vs. Delete Account",
+                "Reset Progress wipes gameplay data (levels, coins) while KEEPING the account linked.\n" +
+                "Delete Account destroys the cloud account and identity permanently.",
+                code: "// Reset Save Game (keeps login, updates cloud):\nawait CloudSync.ResetProgressAsync(\n    onClearLocalSave: () => MySave.ResetProgress(),\n    getCleanSaveBytes: () => MySave.ToBytes());");
+
+            DrawCard(16, "Legacy Migration (PlayFab / Firebase)",
+                "Migrate players from legacy cloud saves to UGS seamlessly with 1 line of code:",
+                code: "await CloudMigration.TryMigrateAsync(\n    fetchLegacySaveAsync: async () => await FetchPlayFabSaveAsync(),\n    onApplyLegacyLocally: bytes => ApplySave(bytes));");
 
             GUILayout.Space(10);
 
