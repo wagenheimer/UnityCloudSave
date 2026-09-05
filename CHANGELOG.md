@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.14.0] - 2026-09-05
+
+### Added
+- add UGS DashboardCredentialsHelper to detect IDs and auto-configure UGS
+
 ## [4.13.2] - 2026-09-05
 
 ### Fixed
