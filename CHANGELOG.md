@@ -2,6 +2,9 @@
 
 ## [4.12.0] - 2026-09-05
 
+### Fixed
+- Replaced hand-crafted UI prefabs (`CloudAuthUI.prefab`, `SyncStatusUI.prefab`, `CloudSaveUI.prefab`) in `Runtime/Resources/` with properly serialized Unity prefabs using 64-bit file IDs, resolving "unexpected file IDs and is likely to be corrupt" warnings upon project import.
+
 ### Added
 - `CloudMigration` universal class (`TryMigrateAsync`) for seamless import from legacy backends (PlayFab, Firebase, custom servers) into UGS Cloud Save.
 - `CloudSync.DeleteCloudSaveAsync()` to delete cloud save keys from UGS.
