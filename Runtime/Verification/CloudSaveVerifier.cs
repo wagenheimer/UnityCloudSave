@@ -1,6 +1,9 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Unity.Services.Authentication;
+using Unity.Services.Core;
+using UnityEngine;
 using Debug = UnityEngine.Debug;
 
 namespace Wagenheimer.CloudSave.Verification
@@ -117,21 +120,38 @@ namespace Wagenheimer.CloudSave.Verification
 
         public override async Task<ValidationResult> RunAsync()
         {
-            await CloudAuth.EnsureSignedInAsync();
+            // Init UGS directly so the real exception surfaces (CloudAuth swallows it into a warning).
+            try
+            {
+                if (UnityServices.State != ServicesInitializationState.Initialized)
+                    await UnityServices.InitializeAsync();
+            }
+            catch (Exception e)
+            {
+                var hint = Application.isPlaying
+                    ? "Confirm the project is linked (Project Settings → Services) and that Cloud Save + Authentication are enabled for this environment in the Unity Dashboard."
+                    : "Runtime checks need Play Mode — Unity Services will not initialise in Edit Mode. Enter Play Mode and run again (a Play-Mode runner lands in Phase 2).";
+                return ValidationResult.Fail(CaseId, $"UnityServices.InitializeAsync() failed: {e.Message}  {hint}", e);
+            }
 
-            if (!CloudAuth.IsReady)
-                return ValidationResult.Fail(CaseId,
-                    "UGS did not become ready. Confirm the project is linked (Project Settings → Services) " +
-                    "and Cloud Save / Authentication are enabled in the Unity Dashboard.");
+            try
+            {
+                if (!AuthenticationService.Instance.IsSignedIn)
+                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            }
+            catch (Exception e)
+            {
+                return ValidationResult.Fail(CaseId, $"Anonymous sign-in failed: {e.Message}", e);
+            }
 
-            if (string.IsNullOrEmpty(CloudAuth.PlayerId))
+            if (string.IsNullOrEmpty(AuthenticationService.Instance.PlayerId))
                 return ValidationResult.Fail(CaseId, "Signed in but PlayerId is empty.");
 
-            if (!CloudAuth.IsSignedIn)
-                return ValidationResult.Fail(CaseId, "CloudAuth.IsReady but AuthenticationService reports not signed in.");
+            // Keep CloudAuth's own readiness flag in sync for the rest of the SDK.
+            await CloudAuth.EnsureSignedInAsync();
 
             return ValidationResult.Pass(CaseId,
-                $"Signed in. Provider={CloudAuth.Provider}, PlayerId={Mask(CloudAuth.PlayerId)}.");
+                $"Signed in anonymously. PlayerId={Mask(AuthenticationService.Instance.PlayerId)}.");
         }
 
         static string Mask(string id)

@@ -81,7 +81,10 @@ namespace Wagenheimer.CloudSave.Editor.Setup
 
         static Meter ComputeIntegration(IReadOnlyList<StepEvaluation> evals)
         {
+            // Setup steps only. Verification-category steps have nothing of their own to configure —
+            // they are measured solely by the Verification meter.
             var relevant = evals.Where(e => e.Applicable &&
+                e.Definition.Category != StepCategory.Verification &&
                 e.Definition.Obligation is Obligation.Required or Obligation.Recommended).ToList();
             int done = relevant.Count(e =>
                 e.Configuration == ConfigurationStatus.Present &&
