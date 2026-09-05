@@ -22,13 +22,14 @@ namespace Wagenheimer.CloudSave.Editor
             public string GoogleAndroidClientId;
             public string FacebookAppId;
             public string DashboardUrl;
+            public string ServiceAccountsUrl;
         }
 
         [MenuItem("Tools/Wagenheimer/Cloud Save/Dashboard Credentials Helper", priority = 10)]
         public static void Open()
         {
             var window = GetWindow<DashboardCredentialsHelper>("UGS Credentials");
-            window.minSize = new Vector2(520, 480);
+            window.minSize = new Vector2(540, 560);
             _cachedData = DetectCredentials();
         }
 
@@ -49,13 +50,16 @@ namespace Wagenheimer.CloudSave.Editor
             Debug.Log("[UGS Credentials Helper]\n" + json);
             Console.WriteLine("[UGS Credentials Helper]\n" + json);
 
+            // Save to Library so CLI agents can read directly
             try
             {
-                var dir = Path.GetFullPath("Library");
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, "UgsCredentials.json"), json);
+                var exportPath = Path.GetFullPath("Library/UgsCredentials.json");
+                File.WriteAllText(exportPath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[UGS] Could not write credentials to Library: " + ex.Message);
+            }
 
             return json;
         }
@@ -81,13 +85,20 @@ namespace Wagenheimer.CloudSave.Editor
             if (!string.IsNullOrEmpty(data.CloudProjectId))
             {
                 if (!string.IsNullOrEmpty(data.OrganizationId))
+                {
                     data.DashboardUrl = $"https://cloud.unity.com/organizations/{data.OrganizationId}/projects/{data.CloudProjectId}/player-authentication/identity-providers";
+                    data.ServiceAccountsUrl = $"https://cloud.unity.com/organizations/{data.OrganizationId}/projects/{data.CloudProjectId}/administration/service-accounts";
+                }
                 else
+                {
                     data.DashboardUrl = $"https://cloud.unity.com/projects/{data.CloudProjectId}/player-authentication/identity-providers";
+                    data.ServiceAccountsUrl = $"https://cloud.unity.com/projects/{data.CloudProjectId}/administration/service-accounts";
+                }
             }
             else
             {
                 data.DashboardUrl = "https://cloud.unity.com";
+                data.ServiceAccountsUrl = "https://cloud.unity.com";
             }
 
             // 2. Google Web Client ID (from google-services.json)
@@ -218,11 +229,12 @@ namespace Wagenheimer.CloudSave.Editor
 
             EditorGUILayout.Space(8);
 
-            // Dashboard Direct Link Card
-            DrawSection("Unity Dashboard Direct Link", () =>
+            // Manual Setup Link Card
+            DrawSection("Quick Manual Setup (Recommended for 1 Game)", () =>
             {
                 EditorGUILayout.LabelField($"Project ID: {_cachedData.CloudProjectId ?? "Unlinked"}");
-                if (GUILayout.Button("Open Sign-In Methods in Dashboard", GUILayout.Height(28)))
+                EditorGUILayout.HelpBox("💡 Easiest: Click below to open Identity Providers in your browser, click 'Google Play Games', and paste the Google Web Client ID copied above.", MessageType.Info);
+                if (GUILayout.Button("🌐 Open Identity Providers in Dashboard", GUILayout.Height(28)))
                 {
                     Application.OpenURL(_cachedData.DashboardUrl);
                 }
@@ -233,14 +245,26 @@ namespace Wagenheimer.CloudSave.Editor
             // Automated API Section
             DrawSection("100% Automated Setup via Unity Management API", () =>
             {
-                EditorGUILayout.LabelField("To let AI/Editor configure UGS without opening the browser:", EditorStyles.wordWrappedMiniLabel);
-                EditorGUILayout.LabelField("1. Dashboard -> Project Settings -> Service Accounts -> Create Service Account (Admin role)");
-                EditorGUILayout.LabelField("2. Paste Key ID:Secret Key below:");
+                EditorGUILayout.HelpBox("⚠️ IMPORTANT:\nDo NOT use the 'Secrets' tab in the left sidebar menu (that is for Cloud Code scripts and environment variables).\n\nService Accounts are located under:\nAdministration -> Service accounts (or click the button below).", MessageType.Warning);
+
+                if (GUILayout.Button("🌐 Open Service Accounts in Browser", GUILayout.Height(26)))
+                {
+                    Application.OpenURL(_cachedData.ServiceAccountsUrl);
+                }
+
+                EditorGUILayout.Space(4);
+                EditorGUILayout.LabelField("Steps to get credentials:", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("1. Click the button above to open Service Accounts.");
+                EditorGUILayout.LabelField("2. Click '+ Create service account'.");
+                EditorGUILayout.LabelField("3. Name: 'CloudSaveAdmin' | Role: 'Player Authentication Admin'.");
+                EditorGUILayout.LabelField("4. Copy the generated Key ID and Secret Key (Secret is only shown once!).");
+                EditorGUILayout.LabelField("5. Paste below in format:  <KeyID>:<SecretKey>");
+                EditorGUILayout.Space(4);
 
                 _serviceAccountKey = EditorGUILayout.PasswordField("Service Account (Key:Secret)", _serviceAccountKey);
 
                 GUI.enabled = !string.IsNullOrEmpty(_serviceAccountKey) && !string.IsNullOrEmpty(_cachedData.CloudProjectId);
-                if (GUILayout.Button("Configure Google & Facebook in UGS Now (via API)", GUILayout.Height(28)))
+                if (GUILayout.Button("Configure Google Play Games in UGS Now (via API)", GUILayout.Height(28)))
                 {
                     ConfigureViaApi(_serviceAccountKey, _cachedData);
                 }
