@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.15.2] - 2026-09-05
+
+### Fixed
+- resolve numeric genesis org id 22730, correct service accounts URL without project path, show breadcrumbs and URL text fields
+
 ## [4.15.1] - 2026-09-05
 
 ### Changed
