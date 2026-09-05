@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.16.1] - 2026-09-05
+
+### Fixed
+- exclude verification steps from Integration meter; surface real UGS init error
+
 ## [4.16.0] - 2026-09-05
 
 ### Added
