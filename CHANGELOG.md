@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.13.2] - 2026-09-05
+
+### Fixed
+- make RunAuditMenuItem return void per Unity MenuItem convention
+
 ## [4.13.1] - 2026-09-05
 
 ### Changed
