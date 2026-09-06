@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.24.0] - 2026-09-06
+
+### Added
+- pluggable art skin (CloudSaveUISkin) + full-screen backdrop hook
+
 ## [4.23.0] - 2026-09-06
 
 ### Added
