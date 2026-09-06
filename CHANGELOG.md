@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.22.0] - 2026-09-06
+
+### Added
+- redesign SyncStatusUI + CloudAuthUI to match (theme, rounded, shadow, fade)
+
 ## [4.21.1] - 2026-09-06
 
 ### Fixed
