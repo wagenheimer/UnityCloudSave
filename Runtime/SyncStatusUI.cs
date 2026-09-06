@@ -18,16 +18,28 @@ namespace Wagenheimer.CloudSave
         [Header("Layout")]
         [SerializeField] int _sortOrder = 150;
 
-        [Header("Colors")]
+        [Header("Colors (overridden by CloudSaveUITheme if present)")]
         [SerializeField] Color _colorSynced   = new Color(0.20f, 0.80f, 0.20f);
         [SerializeField] Color _colorSyncing  = new Color(0.20f, 0.50f, 1.00f);
         [SerializeField] Color _colorOffline  = new Color(1.00f, 0.80f, 0.00f);
         [SerializeField] Color _colorError    = new Color(1.00f, 0.25f, 0.25f);
 
+        [SerializeField] CanvasGroup _cg;
+
         static SyncStatusUI _instance;
         SyncStatus _status = SyncStatus.Offline;
         DateTime _lastSyncTime;
         bool _hasLastSync;
+        CloudSaveUITheme _theme;
+
+        Color ColSynced  => _theme != null ? _theme.Success : _colorSynced;
+        Color ColSyncing => _theme != null ? _theme.Accent  : _colorSyncing;
+        Color ColOffline => _theme != null ? _theme.Warning : _colorOffline;
+        Color ColError_  => _theme != null ? _theme.Error   : _colorError;
+        Color ColPanel   => _theme != null ? _theme.Panel   : new Color(0.05f, 0.05f, 0.05f, 0.82f);
+        Color ColText    => _theme != null ? _theme.Text     : new Color(0.92f, 0.92f, 0.95f);
+        Color ColTextDim => _theme != null ? _theme.TextDim  : new Color(0.60f, 0.60f, 0.65f);
+        int Radius       => _theme != null ? Mathf.Clamp(_theme.CornerRadius, 4, 40) : 20;
 
         public static SyncStatusUI Instance => _instance;
         public SyncStatus Status => _status;

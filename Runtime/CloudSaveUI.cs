@@ -513,7 +513,7 @@ namespace Wagenheimer.CloudSave
             _loadingText = MakeText(card.gameObject, "LoadingText", CloudSaveLocale.Loading(),
                 ColText, 30, TextAlignmentOptions.Center,
                 new Vector2(0.06f, 0.10f), new Vector2(0.94f, 0.40f), Vector2.zero, Vector2.zero);
-            _loadingText.fontStyle = FontStyles.SemiBold;
+            _loadingText.fontStyle = FontStyles.Bold;
 
             _loadingRoot.SetActive(false);
         }
@@ -555,7 +555,7 @@ namespace Wagenheimer.CloudSave
 
             _toastText = MakeText(_toastRoot, "ToastText", "", Color.white, 27, TextAlignmentOptions.Left,
                 new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(90, 6), new Vector2(-20, -6));
-            _toastText.fontStyle = FontStyles.SemiBold;
+            _toastText.fontStyle = FontStyles.Bold;
             _toastText.enableWordWrapping = false;
             _toastText.overflowMode = TextOverflowModes.Ellipsis;
 
@@ -706,7 +706,7 @@ namespace Wagenheimer.CloudSave
 
             var lbl = MakeText(rt.gameObject, "Label", label, textColor, 28, TextAlignmentOptions.Center,
                 Vector2.zero, Vector2.one, new Vector2(10, 6), new Vector2(-10, -6));
-            lbl.fontStyle = FontStyles.SemiBold;
+            lbl.fontStyle = FontStyles.Bold;
 
             var btn = rt.gameObject.AddComponent<Button>();
             btn.targetGraphic = img;
