@@ -14,6 +14,24 @@ namespace Wagenheimer.CloudSave
         public static RectTransform Build(GameObject parent, UiIcon kind, Color color, float size)
         {
             var root = MakeGO(parent, kind.ToString() + "Icon", size);
+
+            var skin = CloudSaveUITheme.Current != null ? CloudSaveUITheme.Current.Skin : null;
+            var sprite = skin != null ? skin.ForIcon(kind) : null;
+            if (sprite != null)
+            {
+                var go = new GameObject("part", typeof(RectTransform));
+                go.transform.SetParent(root, false);
+                var rt = (RectTransform)go.transform;
+                rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+                rt.offsetMin = rt.offsetMax = Vector2.zero;
+                var img = go.AddComponent<Image>();
+                img.sprite = sprite;
+                img.color = color;
+                img.preserveAspect = true;
+                img.raycastTarget = false;
+                return root;
+            }
+
             switch (kind)
             {
                 case UiIcon.Cloud:  Cloud(root, color);  break;

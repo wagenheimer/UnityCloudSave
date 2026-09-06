@@ -223,6 +223,7 @@ namespace Wagenheimer.CloudSave
 
             _overlay = MakePanel(canvas.gameObject, "Overlay", ColOverlay,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).GetComponent<Image>();
+            UiGeneratedSprite.AddBackdrop(_overlay.gameObject);
             var overlayBtn = _overlay.gameObject.AddComponent<Button>();
             overlayBtn.targetGraphic = _overlay;
             overlayBtn.onClick.AddListener(Hide);

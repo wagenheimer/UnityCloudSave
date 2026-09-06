@@ -16,6 +16,13 @@
     "conflict resolution"
   ],
   "category": "Tools",
+  "samples": [
+    {
+      "displayName": "Polished Skin",
+      "description": "How to give the built-in UIs a ready-made art skin (CloudSaveUISkin).",
+      "path": "Samples~/PolishedSkin"
+    }
+  ],
   "dependencies": {
     "com.unity.services.core": "1.12.0",
     "com.unity.services.authentication": "2.7.0",

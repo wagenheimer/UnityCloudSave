@@ -34,6 +34,9 @@ namespace Wagenheimer.CloudSave
         public bool EnableAnimations = true;
         [Range(1f, 8f)] public float ToastSeconds = 2.6f;
 
+        [Header("Ready-made art (optional)")]
+        public CloudSaveUISkin Skin;
+
         static CloudSaveUITheme _loaded;
         static bool _tried;
 

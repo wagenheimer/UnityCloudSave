@@ -523,6 +523,7 @@ namespace Wagenheimer.CloudSave
             Stretch(overlay);
             _loadingRoot = overlay.gameObject;
             _loadingCg = _loadingRoot.AddComponent<CanvasGroup>();
+            UiGeneratedSprite.AddBackdrop(_loadingRoot);
 
             var card = MakeRounded(_loadingRoot, "LoadingCard", ColPanel, 28);
             Center(card, 460, 300);
@@ -599,6 +600,7 @@ namespace Wagenheimer.CloudSave
             Stretch(overlay);
             _conflictRoot = overlay.gameObject;
             _conflictCg = _conflictRoot.AddComponent<CanvasGroup>();
+            UiGeneratedSprite.AddBackdrop(_conflictRoot);
 
             _conflictCard = MakeRounded(_conflictRoot, "ConflictCard", ColPanel, Radius);
             Center(_conflictCard, 900, 760);

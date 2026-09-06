@@ -27,6 +27,12 @@ namespace Wagenheimer.CloudSave
         public void Apply()
         {
             if (!TryGetComponent<Image>(out var img)) return;
+
+            var skinned = CloudSaveUITheme.Current != null && CloudSaveUITheme.Current.Skin != null
+                ? CloudSaveUITheme.Current.Skin.ForShape(Shape)
+                : null;
+            if (skinned != null) { img.sprite = skinned; return; }
+
             img.sprite = Shape switch
             {
                 Kind.RoundedRect => UiSprites.RoundedRect(Radius),
@@ -36,6 +42,24 @@ namespace Wagenheimer.CloudSave
                 Kind.Triangle    => UiSprites.Triangle(),
                 _                => img.sprite,
             };
+        }
+
+        /// <summary>If the active theme has a skin with a backdrop, drops it as a full-rect child behind <paramref name="overlay"/>'s content.</summary>
+        internal static void AddBackdrop(GameObject overlay)
+        {
+            var skin = CloudSaveUITheme.Current != null ? CloudSaveUITheme.Current.Skin : null;
+            if (skin == null || skin.Backdrop == null) return;
+
+            var go = new GameObject("Backdrop", typeof(RectTransform));
+            go.transform.SetParent(overlay.transform, false);
+            go.transform.SetAsFirstSibling();
+            var rt = (RectTransform)go.transform;
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+            var img = go.AddComponent<Image>();
+            img.sprite = skin.Backdrop;
+            img.color = new Color(1f, 1f, 1f, Mathf.Clamp01(skin.BackdropAlpha));
+            img.raycastTarget = false;
         }
 
         internal static UiGeneratedSprite Attach(Image img, Kind shape, int radius = 24)
