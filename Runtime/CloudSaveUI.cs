@@ -26,11 +26,19 @@ namespace Wagenheimer.CloudSave
         [SerializeField] private TextMeshProUGUI _localInfoText;
         [SerializeField] private TextMeshProUGUI _cloudInfoText;
 
+        [Header("Polish (auto-wired)")]
+        [SerializeField] private RectTransform _spinner;
+        [SerializeField] private CanvasGroup _loadingCg;
+        [SerializeField] private CanvasGroup _conflictCg;
+        [SerializeField] private RectTransform _conflictCard;
+        [SerializeField] private TextMeshProUGUI _toastIcon;
+        [SerializeField] private RectTransform _localCardRt;
+        [SerializeField] private RectTransform _cloudCardRt;
+
         [Header("Layout")]
         [SerializeField] private int _sortOrder = 200;
 
         static CloudSaveUI _instance;
-        float _loadingDots;
         Coroutine _toastRoutine;
         TaskCompletionSource<CloudConflictChoice> _conflictTcs;
         CancellationTokenSource _conflictCts;
@@ -90,10 +98,9 @@ namespace Wagenheimer.CloudSave
 
         void Update()
         {
-            if (!_loadingRoot.activeSelf) return;
-            _loadingDots += Time.unscaledDeltaTime * 2f;
-            int dots = (int)(_loadingDots % 4);
-            _loadingText.text = CloudSaveLocale.Loading() + new string('.', dots);
+            if (_loadingRoot == null || !_loadingRoot.activeSelf) return;
+            if (_spinner != null)
+                _spinner.localRotation = Quaternion.Euler(0, 0, _spinner.localEulerAngles.z - Time.unscaledDeltaTime * 320f);
         }
 
         void HandleSyncStarted() => SetLoading(true);
@@ -137,40 +144,87 @@ namespace Wagenheimer.CloudSave
 
         void SetLoading(bool visible)
         {
-            _loadingRoot.SetActive(visible);
-            if (visible) _loadingDots = 0f;
+            if (_loadingRoot == null) return;
+            if (visible)
+            {
+                _loadingRoot.SetActive(true);
+                if (_spinner != null) _spinner.localRotation = Quaternion.identity;
+                if (_loadingCg != null) StartCoroutine(FadeScale(_loadingCg, null, true, 0.18f));
+            }
+            else if (_loadingRoot.activeSelf && _loadingCg != null)
+            {
+                StartCoroutine(FadeScale(_loadingCg, null, false, 0.15f, () => _loadingRoot.SetActive(false)));
+            }
+            else
+            {
+                _loadingRoot.SetActive(false);
+            }
         }
 
         void ShowToast(string message, Color color)
         {
-            if (_toastRoutine != null)
-                StopCoroutine(_toastRoutine);
-            _toastRoutine = StartCoroutine(ToastRoutine(message, color));
+            if (_toastRoutine != null) StopCoroutine(_toastRoutine);
+            _toastRoutine = StartCoroutine(ToastRoutine(message, color, ToastGlyph(color)));
         }
 
-        IEnumerator ToastRoutine(string message, Color color)
+        string ToastGlyph(Color color) =>
+            color == ColSuccess ? "✓" :
+            color == ColError   ? "✕" :
+            color == ColWarning ? "⚠" : "☁";
+
+        IEnumerator ToastRoutine(string message, Color color, string glyph)
         {
             _toastText.text = message;
-            _toastBg.color  = color;
+            if (_toastIcon != null) _toastIcon.text = glyph;
+            _toastBg.color = color;
+
             var cg = _toastRoot.GetComponent<CanvasGroup>();
+            var rt = (RectTransform)_toastRoot.transform;
             _toastRoot.SetActive(true);
 
-            for (float t = 0; t < 0.25f; t += Time.unscaledDeltaTime)
+            float baseY = rt.anchoredPosition.y;
+            const float rise = 28f;
+
+            for (float t = 0; t < 0.22f; t += Time.unscaledDeltaTime)
             {
-                cg.alpha = t / 0.25f;
+                float k = EaseOut(t / 0.22f);
+                cg.alpha = k;
+                rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY - rise * (1f - k));
                 yield return null;
             }
             cg.alpha = 1f;
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY);
 
-            yield return new WaitForSecondsRealtime(2.5f);
+            yield return new WaitForSecondsRealtime(2.6f);
 
-            for (float t = 0; t < 0.35f; t += Time.unscaledDeltaTime)
+            for (float t = 0; t < 0.3f; t += Time.unscaledDeltaTime)
             {
-                cg.alpha = 1f - (t / 0.35f);
+                float k = t / 0.3f;
+                cg.alpha = 1f - k;
+                rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + rise * k);
                 yield return null;
             }
             cg.alpha = 0f;
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY);
             _toastRoot.SetActive(false);
+        }
+
+        static float EaseOut(float t) { t = Mathf.Clamp01(t); return 1f - (1f - t) * (1f - t); }
+
+        IEnumerator FadeScale(CanvasGroup cg, RectTransform scaleTarget, bool show, float dur, Action done = null)
+        {
+            float from = show ? 0f : 1f, to = show ? 1f : 0f;
+            for (float t = 0; t < dur; t += Time.unscaledDeltaTime)
+            {
+                float k = show ? EaseOut(t / dur) : t / dur;
+                float a = Mathf.Lerp(from, to, k);
+                cg.alpha = a;
+                if (scaleTarget != null) scaleTarget.localScale = Vector3.one * Mathf.Lerp(show ? 0.92f : 1f, show ? 1f : 0.96f, k);
+                yield return null;
+            }
+            cg.alpha = to;
+            if (scaleTarget != null) scaleTarget.localScale = Vector3.one;
+            done?.Invoke();
         }
 
         async Task<CloudConflictChoice> ShowConflictDialogAsync(CloudConflictData data)
@@ -185,7 +239,10 @@ namespace Wagenheimer.CloudSave
                 : CloudSaveLocale.ConflictTitleCloud();
             _localInfoText.text = FormatTimestamp(CloudSaveLocale.ConflictLocal(),   data.LocalTimestamp);
             _cloudInfoText.text = FormatTimestamp(CloudSaveLocale.ConflictCloud(), data.CloudTimestamp);
+            HighlightNewer(data.LocalTimestamp, data.CloudTimestamp);
             _conflictRoot.SetActive(true);
+            if (_conflictCg != null)
+                StartCoroutine(FadeScale(_conflictCg, _conflictCard, true, 0.20f));
 
             var timeout = Task.Delay(30000, _conflictCts.Token);
             var choice  = _conflictTcs.Task;
@@ -199,8 +256,27 @@ namespace Wagenheimer.CloudSave
 
         void ResolveConflict(CloudConflictChoice choice)
         {
-            _conflictRoot.SetActive(false);
             _conflictTcs?.TrySetResult(choice);
+            if (_conflictCg != null && isActiveAndEnabled)
+                StartCoroutine(FadeScale(_conflictCg, _conflictCard, false, 0.14f, () => _conflictRoot.SetActive(false)));
+            else
+                _conflictRoot.SetActive(false);
+        }
+
+        void HighlightNewer(long localTicks, long cloudTicks)
+        {
+            if (_localCardRt == null || _cloudCardRt == null) return;
+            bool cloudNewer = cloudTicks > localTicks;
+            SetCardHighlight(_localCardRt, !cloudNewer);
+            SetCardHighlight(_cloudCardRt, cloudNewer);
+        }
+
+        static void SetCardHighlight(RectTransform card, bool on)
+        {
+            var outline = card.GetComponent<Outline>();
+            if (outline == null) outline = card.gameObject.AddComponent<Outline>();
+            outline.effectColor = on ? ColAccent : new Color(0, 0, 0, 0);
+            outline.effectDistance = new Vector2(3, -3);
         }
 
         void UpdateCanvasSortOrder()
@@ -277,10 +353,17 @@ namespace Wagenheimer.CloudSave
             _toastRoot    = FindChild("Toast");
             _toastBg      = FindChild("Toast")?.GetComponent<Image>();
             _toastText    = FindChild("ToastText")?.GetComponent<TextMeshProUGUI>();
+            _toastIcon    = FindChild("ToastIcon")?.GetComponent<TextMeshProUGUI>();
             _conflictRoot = FindChild("Conflict");
             _conflictTitle = FindChild("Title")?.GetComponent<TextMeshProUGUI>();
             _localInfoText = FindChild("LocalInfo")?.GetComponent<TextMeshProUGUI>();
             _cloudInfoText = FindChild("CloudInfo")?.GetComponent<TextMeshProUGUI>();
+            _spinner       = FindChild("Spinner")?.GetComponent<RectTransform>();
+            _loadingCg     = FindChild("Loading")?.GetComponent<CanvasGroup>();
+            _conflictCg    = FindChild("Conflict")?.GetComponent<CanvasGroup>();
+            _conflictCard  = FindChild("ConflictCard")?.GetComponent<RectTransform>();
+            _localCardRt   = FindChild("LocalCard")?.GetComponent<RectTransform>();
+            _cloudCardRt   = FindChild("CloudCard")?.GetComponent<RectTransform>();
             UnityEditor.EditorUtility.SetDirty(this);
         }
 
@@ -298,114 +381,215 @@ namespace Wagenheimer.CloudSave
         }
 #endif
 
-        // ── UI construction (fallback) ──────────────────────────────────────
+        // ── UI construction (procedural fallback / prefab generator) ────────
 
         void BuildUI()
         {
-            var canvas = MakeCanvas("CloudSaveCanvas", _sortOrder);
+            var canvas = EnsureCanvas();
             BuildLoadingOverlay(canvas);
             BuildToast(canvas);
             BuildConflictDialog(canvas);
         }
 
-        Canvas MakeCanvas(string goName, int sortOrder)
+        /// <summary>Reuses a Canvas already in this hierarchy (e.g. a customised prefab); otherwise creates one.</summary>
+        Canvas EnsureCanvas()
         {
-            var go = new GameObject(goName);
-            go.transform.SetParent(transform, false);
-            var canvas = go.AddComponent<Canvas>();
-            canvas.renderMode   = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = sortOrder;
-            var scaler = go.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode         = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            var canvas = GetComponentInChildren<Canvas>(true);
+            if (canvas == null)
+            {
+                var go = new GameObject("CloudSaveCanvas", typeof(RectTransform));
+                go.transform.SetParent(transform, false);
+                canvas = go.AddComponent<Canvas>();
+            }
+
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, _sortOrder);
+
+            var scaler = canvas.GetComponent<CanvasScaler>() ?? canvas.gameObject.AddComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080, 1920);
-            scaler.matchWidthOrHeight  = 0.5f;
-            go.AddComponent<GraphicRaycaster>();
+            scaler.matchWidthOrHeight = 0.5f;
+
+            if (canvas.GetComponent<GraphicRaycaster>() == null)
+                canvas.gameObject.AddComponent<GraphicRaycaster>();
+
             return canvas;
         }
 
         void BuildLoadingOverlay(Canvas canvas)
         {
-            _loadingRoot = MakePanel(canvas.gameObject, "Loading", ColOverlay,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var inner = MakePanel(_loadingRoot, "LoadingInner", ColPanel,
-                new Vector2(0.2f, 0.44f), new Vector2(0.8f, 0.58f), Vector2.zero, Vector2.zero);
-            _loadingText = MakeText(inner, "LoadingText", CloudSaveLocale.Loading(),
-                ColText, 28, TextAlignmentOptions.Center,
-                Vector2.zero, Vector2.one, new Vector2(-20, -20), new Vector2(20, 20));
+            var overlay = MakeImage(canvas.gameObject, "Loading", ColOverlay);
+            Stretch(overlay);
+            _loadingRoot = overlay.gameObject;
+            _loadingCg = _loadingRoot.AddComponent<CanvasGroup>();
+
+            var card = MakeRounded(_loadingRoot, "LoadingCard", ColPanel, 28);
+            Center(card, 460, 300);
+            AddShadow(card);
+
+            var track = MakeImage(card.gameObject, "SpinnerTrack", new Color(1, 1, 1, 0.08f));
+            track.sprite = UiSprites.Ring();
+            CenterInParent(track.rectTransform, new Vector2(0.5f, 0.62f), 78);
+
+            var arc = MakeImage(card.gameObject, "Spinner", ColAccent);
+            arc.sprite = UiSprites.Ring();
+            arc.type = Image.Type.Filled;
+            arc.fillMethod = Image.FillMethod.Radial360;
+            arc.fillClockwise = true;
+            arc.fillAmount = 0.28f;
+            _spinner = arc.rectTransform;
+            CenterInParent(_spinner, new Vector2(0.5f, 0.62f), 78);
+
+            _loadingText = MakeText(card.gameObject, "LoadingText", CloudSaveLocale.Loading(),
+                ColText, 30, TextAlignmentOptions.Center,
+                new Vector2(0.06f, 0.10f), new Vector2(0.94f, 0.40f), Vector2.zero, Vector2.zero);
+            _loadingText.fontStyle = FontStyles.SemiBold;
+
             _loadingRoot.SetActive(false);
+        }
+
+        static void CenterInParent(RectTransform rt, Vector2 anchor, float size)
+        {
+            rt.anchorMin = rt.anchorMax = anchor;
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(size, size);
+            rt.anchoredPosition = Vector2.zero;
         }
 
         void BuildToast(Canvas canvas)
         {
-            _toastRoot = new GameObject("Toast", typeof(RectTransform));
-            _toastRoot.transform.SetParent(canvas.transform, false);
+            var safeGo = new GameObject("ToastSafeArea", typeof(RectTransform));
+            safeGo.transform.SetParent(canvas.transform, false);
+            var safe = Stretch((RectTransform)safeGo.transform);
+            safe.gameObject.AddComponent<UiSafeArea>();
+
+            var pill = MakeRounded(safe.gameObject, "Toast", ColSuccess, 26);
+            _toastRoot = pill.gameObject;
+            _toastBg = pill.GetComponent<Image>();
+            pill.anchorMin = pill.anchorMax = new Vector2(0.5f, 0f);
+            pill.pivot = new Vector2(0.5f, 0f);
+            pill.sizeDelta = new Vector2(760, 96);
+            pill.anchoredPosition = new Vector2(0, 40);
+
             var cg = _toastRoot.AddComponent<CanvasGroup>();
             cg.alpha = 0f;
-            var rt = _toastRoot.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.1f, 0.05f);
-            rt.anchorMax = new Vector2(0.9f, 0.10f);
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            _toastBg = _toastRoot.AddComponent<Image>();
-            _toastBg.color = ColSuccess;
-            _toastText = MakeText(_toastRoot, "ToastText", "",
-                Color.white, 26, TextAlignmentOptions.Center,
-                Vector2.zero, Vector2.one, new Vector2(-16, -8), new Vector2(16, 8));
+            cg.blocksRaycasts = false;
+
+            _toastIcon = MakeText(_toastRoot, "ToastIcon", "✓", Color.white, 34, TextAlignmentOptions.Center,
+                new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(18, 0), new Vector2(78, 0));
+            _toastText = MakeText(_toastRoot, "ToastText", "", Color.white, 27, TextAlignmentOptions.Left,
+                new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(86, 6), new Vector2(-20, -6));
+            _toastText.fontStyle = FontStyles.SemiBold;
+            _toastText.enableWordWrapping = false;
+            _toastText.overflowMode = TextOverflowModes.Ellipsis;
+
             _toastRoot.SetActive(false);
         }
 
         void BuildConflictDialog(Canvas canvas)
         {
-            _conflictRoot = MakePanel(canvas.gameObject, "Conflict", ColOverlay,
-                Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var overlay = MakeImage(canvas.gameObject, "Conflict", ColOverlay);
+            Stretch(overlay);
+            _conflictRoot = overlay.gameObject;
+            _conflictCg = _conflictRoot.AddComponent<CanvasGroup>();
 
-            var card = MakePanel(_conflictRoot, "ConflictCard", ColPanel,
-                new Vector2(0.05f, 0.28f), new Vector2(0.95f, 0.72f), Vector2.zero, Vector2.zero);
+            _conflictCard = MakeRounded(_conflictRoot, "ConflictCard", ColPanel, 30);
+            Center(_conflictCard, 900, 760);
+            AddShadow(_conflictCard);
+            var card = _conflictCard.gameObject;
+
+            MakeText(card, "CloudBadge", "☁", ColAccent, 60, TextAlignmentOptions.Center,
+                new Vector2(0f, 0.86f), new Vector2(1f, 1f), new Vector2(0, -14), new Vector2(0, -10));
 
             _conflictTitle = MakeText(card, "Title", CloudSaveLocale.ConflictTitleCloud(),
-                ColText, 34, TextAlignmentOptions.Top,
-                new Vector2(0f, 0.75f), new Vector2(1f, 1f),
-                new Vector2(16, 0), new Vector2(-16, -8));
+                ColText, 38, TextAlignmentOptions.Center,
+                new Vector2(0.06f, 0.76f), new Vector2(0.94f, 0.88f), Vector2.zero, Vector2.zero);
             _conflictTitle.fontStyle = FontStyles.Bold;
 
             MakeText(card, "Subtitle", CloudSaveLocale.ConflictChoose(),
-                ColTextDim, 24, TextAlignmentOptions.Top,
-                new Vector2(0f, 0.62f), new Vector2(1f, 0.76f),
-                new Vector2(16, 0), new Vector2(-16, 0));
+                ColTextDim, 25, TextAlignmentOptions.Center,
+                new Vector2(0.08f, 0.66f), new Vector2(0.92f, 0.77f), Vector2.zero, Vector2.zero);
 
-            var localCard = MakePanel(card, "LocalCard", ColLocalCard,
-                new Vector2(0.03f, 0.28f), new Vector2(0.48f, 0.62f), Vector2.zero, Vector2.zero);
-            _localInfoText = MakeText(localCard, "LocalInfo", "",
-                ColText, 24, TextAlignmentOptions.Center,
-                Vector2.zero, Vector2.one, new Vector2(8, 8), new Vector2(-8, -8));
+            _localCardRt = MakeRounded(card, "LocalCard", ColLocalCard, 20);
+            _localCardRt.anchorMin = new Vector2(0.05f, 0.30f);
+            _localCardRt.anchorMax = new Vector2(0.485f, 0.63f);
+            _localCardRt.offsetMin = _localCardRt.offsetMax = Vector2.zero;
+            MakeText(_localCardRt.gameObject, "LocalIcon", "📱", ColText, 34, TextAlignmentOptions.Center,
+                new Vector2(0, 0.62f), new Vector2(1, 1f), Vector2.zero, new Vector2(0, -8));
+            MakeText(_localCardRt.gameObject, "LocalCaption", CloudSaveLocale.ConflictLocal(), ColTextDim, 20,
+                TextAlignmentOptions.Center, new Vector2(0, 0.44f), new Vector2(1, 0.62f), Vector2.zero, Vector2.zero);
+            _localInfoText = MakeText(_localCardRt.gameObject, "LocalInfo", "", ColText, 24, TextAlignmentOptions.Center,
+                new Vector2(0.06f, 0.06f), new Vector2(0.94f, 0.44f), Vector2.zero, Vector2.zero);
 
-            var cloudCard = MakePanel(card, "CloudCard", ColCloudCard,
-                new Vector2(0.52f, 0.28f), new Vector2(0.97f, 0.62f), Vector2.zero, Vector2.zero);
-            _cloudInfoText = MakeText(cloudCard, "CloudInfo", "",
-                ColText, 24, TextAlignmentOptions.Center,
-                Vector2.zero, Vector2.one, new Vector2(8, 8), new Vector2(-8, -8));
+            _cloudCardRt = MakeRounded(card, "CloudCard", ColCloudCard, 20);
+            _cloudCardRt.anchorMin = new Vector2(0.515f, 0.30f);
+            _cloudCardRt.anchorMax = new Vector2(0.95f, 0.63f);
+            _cloudCardRt.offsetMin = _cloudCardRt.offsetMax = Vector2.zero;
+            MakeText(_cloudCardRt.gameObject, "CloudIcon", "☁", ColText, 34, TextAlignmentOptions.Center,
+                new Vector2(0, 0.62f), new Vector2(1, 1f), Vector2.zero, new Vector2(0, -8));
+            MakeText(_cloudCardRt.gameObject, "CloudCaption", CloudSaveLocale.ConflictCloud(), ColTextDim, 20,
+                TextAlignmentOptions.Center, new Vector2(0, 0.44f), new Vector2(1, 0.62f), Vector2.zero, Vector2.zero);
+            _cloudInfoText = MakeText(_cloudCardRt.gameObject, "CloudInfo", "", ColText, 24, TextAlignmentOptions.Center,
+                new Vector2(0.06f, 0.06f), new Vector2(0.94f, 0.44f), Vector2.zero, Vector2.zero);
 
-            MakeButton(card, "BtnLocal", CloudSaveLocale.BtnKeepLocal(), ColLocalCard, ColTextDim,
-                new Vector2(0.03f, 0.05f), new Vector2(0.48f, 0.26f),
+            MakeButton(card, "BtnLocal", CloudSaveLocale.BtnKeepLocal(), ColLocalCard, ColText, false,
+                new Vector2(0.05f, 0.06f), new Vector2(0.485f, 0.24f),
                 () => ResolveConflict(CloudConflictChoice.UseLocal));
-
-            MakeButton(card, "BtnCloud", CloudSaveLocale.BtnUseCloud(), ColAccent, Color.white,
-                new Vector2(0.52f, 0.05f), new Vector2(0.97f, 0.26f),
+            MakeButton(card, "BtnCloud", CloudSaveLocale.BtnUseCloud(), ColAccent, Color.white, true,
+                new Vector2(0.515f, 0.06f), new Vector2(0.95f, 0.24f),
                 () => ResolveConflict(CloudConflictChoice.UseCloud));
 
             _conflictRoot.SetActive(false);
         }
 
-        GameObject MakePanel(GameObject parent, string name, Color color,
-            Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
+        // ── low-level builders ────────────────────────────────────────────
+
+        static RectTransform Stretch(RectTransform rt)
+        {
+            rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+            return rt;
+        }
+        static RectTransform Stretch(Image img) => Stretch(img.rectTransform);
+
+        static void Center(RectTransform rt, float w, float h)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(w, h);
+            rt.anchoredPosition = Vector2.zero;
+        }
+
+        Image MakeImage(GameObject parent, string name, Color color)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent.transform, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
-            rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
-            go.AddComponent<Image>().color = color;
-            return go;
+            var img = go.AddComponent<Image>();
+            img.color = color;
+            img.raycastTarget = true;
+            return img;
+        }
+
+        RectTransform MakeRounded(GameObject parent, string name, Color color, int radius)
+        {
+            var img = MakeImage(parent, name, color);
+            img.sprite = UiSprites.RoundedRect(radius);
+            img.type = Image.Type.Sliced;
+            img.pixelsPerUnitMultiplier = 1f;
+            return img.rectTransform;
+        }
+
+        void AddShadow(RectTransform card)
+        {
+            var img = MakeImage(card.parent.gameObject, card.name + "Shadow", new Color(0, 0, 0, 0.35f));
+            img.sprite = UiSprites.Shadow(34);
+            img.type = Image.Type.Sliced;
+            img.raycastTarget = false;
+            var rt = img.rectTransform;
+            rt.anchorMin = card.anchorMin; rt.anchorMax = card.anchorMax; rt.pivot = card.pivot;
+            rt.sizeDelta = card.sizeDelta + new Vector2(46, 46);
+            rt.anchoredPosition = card.anchoredPosition + new Vector2(0, -10);
+            rt.SetSiblingIndex(card.GetSiblingIndex());
         }
 
         TextMeshProUGUI MakeText(GameObject parent, string name, string content, Color color,
@@ -418,23 +602,46 @@ namespace Wagenheimer.CloudSave
             rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
             var txt = go.AddComponent<TextMeshProUGUI>();
-            txt.text       = content;
-            txt.color      = color;
-            txt.fontSize   = fontSize;
-            txt.alignment  = alignment;
+            txt.text = content;
+            txt.color = color;
+            txt.fontSize = fontSize;
+            txt.alignment = alignment;
+            txt.raycastTarget = false;
             return txt;
         }
 
-        void MakeButton(GameObject parent, string name, string label,
-            Color bgColor, Color textColor,
-            Vector2 anchorMin, Vector2 anchorMax, Action onClick)
+        void MakeButton(GameObject parent, string name, string label, Color bgColor, Color textColor,
+            bool filled, Vector2 anchorMin, Vector2 anchorMax, Action onClick)
         {
-            var go = MakePanel(parent, name, bgColor, anchorMin, anchorMax,
-                Vector2.zero, Vector2.zero);
-            MakeText(go, "Label", label, textColor, 28, TextAlignmentOptions.Center,
-                Vector2.zero, Vector2.one, new Vector2(8, 4), new Vector2(-8, -4));
-            var btn = go.AddComponent<Button>();
-            btn.targetGraphic = go.GetComponent<Image>();
+            var rt = MakeRounded(parent, name, filled ? bgColor : new Color(1, 1, 1, 0.06f), 22);
+            rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
+            rt.offsetMin = rt.offsetMax = Vector2.zero;
+            var img = rt.GetComponent<Image>();
+
+            if (!filled)
+            {
+                var outline = rt.gameObject.AddComponent<Outline>();
+                outline.effectColor = new Color(1, 1, 1, 0.20f);
+                outline.effectDistance = new Vector2(2, -2);
+            }
+
+            var lbl = MakeText(rt.gameObject, "Label", label, textColor, 28, TextAlignmentOptions.Center,
+                Vector2.zero, Vector2.one, new Vector2(10, 6), new Vector2(-10, -6));
+            lbl.fontStyle = FontStyles.SemiBold;
+
+            var btn = rt.gameObject.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.transition = Selectable.Transition.ColorTint;
+            btn.colors = new ColorBlock
+            {
+                normalColor = Color.white,
+                highlightedColor = filled ? new Color(1.1f, 1.1f, 1.1f, 1f) : new Color(1f, 1f, 1f, 2.6f),
+                pressedColor = filled ? new Color(0.88f, 0.88f, 0.88f, 1f) : new Color(1f, 1f, 1f, 4f),
+                selectedColor = Color.white,
+                disabledColor = new Color(1, 1, 1, 0.4f),
+                colorMultiplier = 1f,
+                fadeDuration = 0.1f,
+            };
             btn.onClick.AddListener(() => onClick());
         }
     }

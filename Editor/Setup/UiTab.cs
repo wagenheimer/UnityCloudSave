@@ -273,8 +273,18 @@ namespace Wagenheimer.CloudSave.Editor.Setup
         static void Spawn(PackageUi ui, Type type, GameObject prefab)
         {
             GameObject go;
-            if (prefab != null) go = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-            else { go = new GameObject(ui.Type); if (type != null) go.AddComponent(type); }
+            if (prefab != null)
+            {
+                go = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            }
+            else
+            {
+                go = new GameObject(ui.Type);
+                var comp = type != null ? go.AddComponent(type) : null;
+                // Awake doesn't run on AddComponent in Edit Mode — build the UI explicitly.
+                type?.GetMethod("BuildDefaultUI", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+                    ?.Invoke(comp, null);
+            }
             Undo.RegisterCreatedObjectUndo(go, "Spawn " + ui.Type);
             Selection.activeGameObject = go;
             SceneView.lastActiveSceneView?.FrameSelected();
