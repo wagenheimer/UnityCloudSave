@@ -87,6 +87,12 @@ namespace Wagenheimer.CloudSave.Editor.Setup
         /// <summary>True when this step has a runtime validation case.</summary>
         public bool HasRuntimeValidator { get; }
 
+        /// <summary>
+        /// Optional ready-to-paste prompt for an AI assistant to add or fix exactly this step.
+        /// When null, the Hub generates one from <see cref="Copy"/>.
+        /// </summary>
+        public string AiPrompt { get; }
+
         public StepDefinition(
             string id,
             string title,
@@ -97,7 +103,8 @@ namespace Wagenheimer.CloudSave.Editor.Setup
             IReadOnlyList<DependencyEdge> dependsOn = null,
             IReadOnlyList<string> fingerprintInputs = null,
             bool hasManualRequirement = false,
-            bool hasRuntimeValidator = false)
+            bool hasRuntimeValidator = false,
+            string aiPrompt = null)
         {
             if (string.IsNullOrEmpty(id)) throw new ArgumentException("Step id is required", nameof(id));
             Id = id;
@@ -110,6 +117,7 @@ namespace Wagenheimer.CloudSave.Editor.Setup
             FingerprintInputs = fingerprintInputs ?? Array.Empty<string>();
             HasManualRequirement = hasManualRequirement;
             HasRuntimeValidator = hasRuntimeValidator;
+            AiPrompt = aiPrompt;
         }
     }
 }

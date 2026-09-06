@@ -19,6 +19,7 @@ namespace Wagenheimer.CloudSave.Editor.Setup
             public const string CloudSaveService = "ugs.cloudsave";
             public const string AnonymousAuth = "ugs.auth.anonymous";
 
+            public const string CodeController = "code.controller";
             public const string CodeConfigure = "code.configure";
             public const string CodeInitSync = "code.initsync";
             public const string CodeSave = "code.save";
@@ -67,6 +68,12 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                 [Ids.UgsProject] = new UgsProjectDetector(),
                 [Ids.CloudSaveService] = new CloudSaveServiceDetector(),
                 [Ids.AnonymousAuth] = new AnonymousAuthDetector(),
+
+                [Ids.CodeController] = new CodePresenceDetector(
+                    @"CloudSaveController\.Create", "code.controller",
+                    "CloudSaveController.Create(...) found",
+                    "Recommended: one CloudSaveController.Create(new CloudSaveOptions { SaveKey, Serialize, Deserialize }) " +
+                    "replaces the manual Configure / InitAndSync / SaveAsync / timestamp wiring."),
 
                 [Ids.CodeConfigure] = new CodePresenceDetector(
                     @"CloudSync\.Configure", "code.configure",
@@ -134,6 +141,10 @@ namespace Wagenheimer.CloudSave.Editor.Setup
         static DependencyEdge Dep(string id, DependencyGate gate = DependencyGate.RequiresConfigured, bool cascade = false)
             => new(id, gate, cascade);
 
+        /// <summary>Manual startup steps don't apply once the high-level CloudSaveController is in use.</summary>
+        static readonly Func<SetupContext, bool> UnlessController =
+            ctx => !ctx.Code.Any(@"CloudSaveController\.Create");
+
         static StepCopy C(string what, string why = "", string doThis = "", string test = "", string expect = "",
             params StepLink[] links)
             => new()
@@ -175,41 +186,69 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                 fingerprintInputs: new[] { AnonymousAuthDetector.PackageVersionInput }),
 
             // ── Startup Code ───────────────────────────────────────────────
-            new StepDefinition(Ids.CodeConfigure, "Call CloudSync.Configure()", StepCategory.StartupCode, Obligation.Required,
+            new StepDefinition(Ids.CodeController, "Use CloudSaveController (recommended path)", StepCategory.StartupCode, Obligation.Recommended,
+                C("One object that runs the whole Cloud Save lifecycle so your game supplies only Serialize / Deserialize.",
+                  "It replaces the manual Configure + InitAndSync + SaveAsync + timestamp + account-switch + migration wiring — ~8 lines instead of ~150.",
+                  "var cloud = CloudSaveController.Create(new CloudSaveOptions { SaveKey=\"...\", Serialize=..., Deserialize=... }); await cloud.StartAsync();  // then cloud.MarkDirty() after each local save",
+                  "Grep proof for CloudSaveController.Create + the anonymous verification below.",
+                  "Green when CloudSaveController.Create is found. The three manual steps below then show as Not applicable."),
+                dependsOn: new[] { Dep(Ids.CloudSaveService, cascade: true), Dep(Ids.AnonymousAuth) },
+                fingerprintInputs: new[] { "code.controller" },
+                aiPrompt: "In this Unity project, integrate cloud save using Wagenheimer.CloudSave's high-level CloudSaveController. " +
+                          "Find where the game loads/saves its player data. Create a single CloudSaveController via " +
+                          "CloudSaveController.Create(new CloudSaveOptions { SaveKey = \"<stable_key>\", Serialize = () => <bytes of current save>, " +
+                          "Deserialize = bytes => { <apply bytes to the save AND write it to disk> }, OnCloudApplied = () => <refresh UI> }). " +
+                          "Call await controller.StartAsync() during game bootstrap after other services init, call controller.MarkDirty() " +
+                          "immediately after every local save, and call await controller.FlushAsync() from OnApplicationPause(true) and OnApplicationQuit. " +
+                          "Do NOT also call CloudSync.Configure/InitAndSyncAsync/SaveAsync directly — the controller does that. Keep the controller reference alive for the session."),
+
+            new StepDefinition(Ids.CodeConfigure, "Call CloudSync.Configure() (manual path)", StepCategory.StartupCode, Obligation.Required,
                 C("Picks the Cloud Save key your game reads/writes.",
-                  "Without it CloudSync has no slot to sync.",
+                  "Without it CloudSync has no slot to sync. Not needed if you use CloudSaveController.",
                   "At startup: CloudSync.Configure(\"my_save_key\");",
                   "Grep proof: a CloudSync.Configure call in your Assets.",
-                  "This step turns green when the call is found."),
+                  "This step turns green when the call is found (or Not applicable if you use the controller)."),
+                appliesTo: UnlessController,
                 dependsOn: new[] { Dep(Ids.CloudSaveService, cascade: true) },
-                fingerprintInputs: new[] { "code.configure" }),
+                fingerprintInputs: new[] { "code.configure" },
+                aiPrompt: "Add `CloudSync.Configure(\"<stable_save_key>\");` once at game startup, before the first CloudSync.InitAndSyncAsync call. " +
+                          "Use a key that never changes for the life of the game."),
 
-            new StepDefinition(Ids.CodeInitSync, "Call CloudSync.InitAndSyncAsync()", StepCategory.StartupCode, Obligation.Required,
+            new StepDefinition(Ids.CodeInitSync, "Call CloudSync.InitAndSyncAsync() (manual path)", StepCategory.StartupCode, Obligation.Required,
                 C("Pulls the cloud save on launch and resolves conflicts against local.",
-                  "Without it a returning player never gets their cloud progress.",
+                  "Without it a returning player never gets their cloud progress. Not needed if you use CloudSaveController.",
                   "At startup after Configure(): _ = CloudSync.InitAndSyncAsync(localTs, OnCloudNewer);",
                   "Grep proof + the anonymous verification below.",
-                  "Green when the call is found."),
+                  "Green when the call is found (or Not applicable with the controller)."),
+                appliesTo: UnlessController,
                 dependsOn: new[] { Dep(Ids.CodeConfigure, cascade: true) },
-                fingerprintInputs: new[] { "code.initsync" }),
+                fingerprintInputs: new[] { "code.initsync" },
+                aiPrompt: "After CloudSync.Configure, at game startup, call `_ = CloudSync.InitAndSyncAsync(localTimestamp, onCloudNewer)` where " +
+                          "localTimestamp is the UtcNow.Ticks of the last local save and onCloudNewer(byte[] cloudBytes) applies + persists the cloud save."),
 
-            new StepDefinition(Ids.CodeSave, "Call CloudSync.SaveAsync()", StepCategory.StartupCode, Obligation.Required,
+            new StepDefinition(Ids.CodeSave, "Call CloudSync.SaveAsync() (manual path)", StepCategory.StartupCode, Obligation.Required,
                 C("Uploads local data to the cloud after each save.",
-                  "Without it nothing ever reaches the cloud.",
+                  "Without it nothing ever reaches the cloud. Not needed if you use CloudSaveController.",
                   "After each local save: _ = CloudSync.SaveAsync(bytes, timestamp);",
                   "Grep proof + the save round-trip (Phase 2).",
-                  "Green when the call is found."),
+                  "Green when the call is found (or Not applicable with the controller)."),
+                appliesTo: UnlessController,
                 dependsOn: new[] { Dep(Ids.CodeConfigure, cascade: true) },
-                fingerprintInputs: new[] { "code.save" }),
+                fingerprintInputs: new[] { "code.save" },
+                aiPrompt: "Immediately after every place the game writes its save to disk, also call " +
+                          "`_ = CloudSync.SaveAsync(serializedBytes, DateTime.UtcNow.Ticks)` with the same bytes."),
 
             // ── Save Data ──────────────────────────────────────────────────
-            new StepDefinition(Ids.SaveTimestamp, "Save class has a long timestamp", StepCategory.SaveData, Obligation.Required,
+            new StepDefinition(Ids.SaveTimestamp, "Save class has a long timestamp (manual path)", StepCategory.SaveData, Obligation.Required,
                 C("A `long LastSaved` (or SaveDateTime) field set to DateTime.UtcNow.Ticks.",
-                  "Last-write-wins conflict resolution compares this value.",
+                  "Last-write-wins conflict resolution compares this value. Not needed if you use CloudSaveController — it owns the timestamp.",
                   "Add `public long LastSaved;` to your save class and set it on every save.",
                   "Grep proof for `long LastSaved / SaveDateTime`.",
-                  "Green when a long timestamp field is found."),
-                fingerprintInputs: new[] { "save.timestamp" }),
+                  "Green when a long timestamp field is found (or Not applicable with the controller)."),
+                appliesTo: UnlessController,
+                fingerprintInputs: new[] { "save.timestamp" },
+                aiPrompt: "Add `public long LastSaved;` to the game's serializable save class and set it to `DateTime.UtcNow.Ticks` " +
+                          "every time the game saves, before serializing."),
 
             new StepDefinition(Ids.SaveSerializable, "Save class is [Serializable]", StepCategory.SaveData, Obligation.Recommended,
                 C("JsonUtility (the default serializer) needs [Serializable] on your save type.",

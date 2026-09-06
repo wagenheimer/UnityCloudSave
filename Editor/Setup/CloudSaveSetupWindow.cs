@@ -281,15 +281,32 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                 }
             }
 
-            if (c.Links != null && c.Links.Length > 0)
+            using (new EditorGUILayout.HorizontalScope())
             {
-                using (new EditorGUILayout.HorizontalScope())
+                if (GUILayout.Button("🤖  Copy AI prompt", EditorStyles.miniButton))
                 {
+                    EditorGUIUtility.systemCopyBuffer = AiPromptFor(e);
+                    ShowNotification(new GUIContent("AI prompt copied"));
+                }
+                if (c.Links != null)
                     foreach (var link in c.Links)
                         if (GUILayout.Button(link.Label, EditorStyles.miniButton))
                             Application.OpenURL(link.Url);
-                }
             }
+        }
+
+        static string AiPromptFor(StepEvaluation e)
+        {
+            if (!string.IsNullOrEmpty(e.Definition.AiPrompt))
+                return e.Definition.AiPrompt;
+
+            var c = e.Definition.Copy;
+            return $"In this Unity project, complete this Cloud Save setup step: \"{e.Definition.Title}\".\n" +
+                   $"What it is: {c.WhatIsThis}\n" +
+                   $"What to do: {c.WhatYouDo}\n" +
+                   $"Verify by: {c.HowToTest}\n" +
+                   $"Expected result: {c.ExpectedResult}\n" +
+                   "Make the minimal change, matching the project's existing conventions.";
         }
 
         async void RunValidation(StepEvaluation e)
