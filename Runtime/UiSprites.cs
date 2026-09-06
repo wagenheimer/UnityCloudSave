@@ -109,6 +109,35 @@ namespace Wagenheimer.CloudSave
             return _ring;
         }
 
+        static Sprite _triangle;
+
+        /// <summary>White upward equilateral-ish triangle with a rounded base. Tint with Image.color.</summary>
+        public static Sprite Triangle()
+        {
+            if (_triangle != null) return _triangle;
+            const int size = 96;
+            var tex = NewTex(size);
+            var px = new Color32[size * size];
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float u = (x + 0.5f) / size;   // 0..1
+                float v = (y + 0.5f) / size;   // 0..1, bottom→top
+                // half-width shrinks from 0.46 at base to ~0 at apex
+                float halfW = Mathf.Lerp(0.46f, 0.02f, v);
+                float dx = Mathf.Abs(u - 0.5f);
+                float edge = Mathf.Clamp01((halfW - dx) * size * 0.5f);
+                float bottom = Mathf.Clamp01((v - 0.06f) * size * 0.5f);
+                float top = Mathf.Clamp01((0.98f - v) * size * 0.5f);
+                px[y * size + x] = new Color32(255, 255, 255, (byte)(edge * bottom * top * 255f));
+            }
+            tex.SetPixels32(px);
+            tex.Apply(false, false);
+            _triangle = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), PixelsPerUnit);
+            _triangle.name = "ucs_triangle";
+            return _triangle;
+        }
+
         static Texture2D NewTex(int size) => new(size, size, TextureFormat.RGBA32, false)
         {
             name = "ucs_tex",

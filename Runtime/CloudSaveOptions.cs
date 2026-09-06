@@ -77,6 +77,14 @@ namespace Wagenheimer.CloudSave
         /// <summary>How to apply migrated legacy bytes locally. Defaults to <see cref="Deserialize"/>.</summary>
         public Action<byte[]> ApplyLegacySave;
 
+        // ── Optional: conflict dialog summary ─────────────────────────────
+
+        /// <summary>
+        /// A short human-readable summary of a save blob ("Level 42 · 1200 coins · 3 days played").
+        /// When set, the built-in conflict dialog shows this on each side instead of a bare timestamp.
+        /// </summary>
+        public Func<byte[], string> DescribeSave;
+
         // ── Optional: auto-save ──────────────────────────────────────────
 
         /// <summary>When true (default), <see cref="CloudSaveController.MarkDirty"/> debounces an upload. When false it uploads immediately.</summary>

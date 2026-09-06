@@ -28,6 +28,7 @@ namespace Wagenheimer.CloudSave
         readonly CloudSaveOptions _o;
         int _saveGeneration;
         bool _started;
+        bool _installedSummaryProvider;
 
         string TimestampPrefKey => "ucs_ts_" + _o.SaveKey;
 
@@ -72,6 +73,19 @@ namespace Wagenheimer.CloudSave
             CloudSync.ConflictResolver = _o.ConflictResolver;
             if (_o.OnSyncCompleted != null) CloudSync.OnSyncCompleted += _o.OnSyncCompleted;
             CloudAuth.OnAccountSwitched += HandleAccountSwitched;
+
+            if (_o.DescribeSave != null)
+            {
+                _installedSummaryProvider = true;
+                CloudSaveUI.ConflictSummaryProvider = data =>
+                {
+                    string local = null;
+                    try { local = _o.DescribeSave(_o.Serialize()); } catch { /* fall back to timestamp */ }
+                    string cloud = null;
+                    try { cloud = data.CloudBytes != null ? _o.DescribeSave(data.CloudBytes) : null; } catch { }
+                    return (local, cloud);
+                };
+            }
 
             await CloudAuth.EnsureSignedInAsync();
             await SyncAsync(CloudConflictReason.CloudIsNewer);
@@ -219,6 +233,7 @@ namespace Wagenheimer.CloudSave
         {
             if (_o.OnSyncCompleted != null) CloudSync.OnSyncCompleted -= _o.OnSyncCompleted;
             CloudAuth.OnAccountSwitched -= HandleAccountSwitched;
+            if (_installedSummaryProvider) CloudSaveUI.ConflictSummaryProvider = null;
         }
     }
 }

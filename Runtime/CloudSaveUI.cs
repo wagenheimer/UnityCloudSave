@@ -1,5 +1,7 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using TMPro;
@@ -31,7 +33,7 @@ namespace Wagenheimer.CloudSave
         [SerializeField] private CanvasGroup _loadingCg;
         [SerializeField] private CanvasGroup _conflictCg;
         [SerializeField] private RectTransform _conflictCard;
-        [SerializeField] private TextMeshProUGUI _toastIcon;
+        [SerializeField] private RectTransform _toastIcon;
         [SerializeField] private RectTransform _localCardRt;
         [SerializeField] private RectTransform _cloudCardRt;
 
@@ -40,19 +42,33 @@ namespace Wagenheimer.CloudSave
 
         static CloudSaveUI _instance;
         Coroutine _toastRoutine;
+        readonly Queue<(string message, Color color)> _toastQueue = new();
+        bool _toastPumping;
         TaskCompletionSource<CloudConflictChoice> _conflictTcs;
         CancellationTokenSource _conflictCts;
+        CloudSaveUITheme _theme;
 
-        static readonly Color ColOverlay   = new Color(0f,    0f,    0f,    0.72f);
-        static readonly Color ColPanel     = new Color(0.12f, 0.12f, 0.14f, 0.97f);
-        static readonly Color ColAccent    = new Color(0.22f, 0.60f, 1f,    1f);
-        static readonly Color ColSuccess   = new Color(0.20f, 0.75f, 0.35f, 1f);
-        static readonly Color ColWarning   = new Color(1f,    0.75f, 0.10f, 1f);
-        static readonly Color ColError     = new Color(0.85f, 0.25f, 0.20f, 1f);
-        static readonly Color ColText      = new Color(0.92f, 0.92f, 0.95f, 1f);
-        static readonly Color ColTextDim   = new Color(0.65f, 0.65f, 0.70f, 1f);
-        static readonly Color ColLocalCard = new Color(0.18f, 0.18f, 0.22f, 1f);
-        static readonly Color ColCloudCard = new Color(0.10f, 0.22f, 0.38f, 1f);
+        /// <summary>
+        /// Optional hook for a human-readable summary of each side of a conflict ("Level 42 · 1200 coins").
+        /// Return (localSummary, cloudSummary); either may be null to fall back to the timestamp.
+        /// <see cref="CloudSaveController"/> wires this from <c>CloudSaveOptions.DescribeSave</c>.
+        /// </summary>
+        public static Func<CloudConflictData, (string local, string cloud)> ConflictSummaryProvider;
+
+        Color ColOverlay   => _theme != null ? _theme.Overlay   : new Color(0f, 0f, 0f, 0.72f);
+        Color ColPanel     => _theme != null ? _theme.Panel     : new Color(0.12f, 0.12f, 0.14f, 0.97f);
+        Color ColAccent    => _theme != null ? _theme.Accent    : new Color(0.22f, 0.60f, 1f, 1f);
+        Color ColSuccess   => _theme != null ? _theme.Success   : new Color(0.20f, 0.75f, 0.35f, 1f);
+        Color ColWarning   => _theme != null ? _theme.Warning   : new Color(1f, 0.75f, 0.10f, 1f);
+        Color ColError     => _theme != null ? _theme.Error     : new Color(0.85f, 0.25f, 0.20f, 1f);
+        Color ColText      => _theme != null ? _theme.Text      : new Color(0.92f, 0.92f, 0.95f, 1f);
+        Color ColTextDim   => _theme != null ? _theme.TextDim   : new Color(0.65f, 0.65f, 0.70f, 1f);
+        Color ColLocalCard => _theme != null ? _theme.LocalCard : new Color(0.18f, 0.18f, 0.22f, 1f);
+        Color ColCloudCard => _theme != null ? _theme.CloudCard : new Color(0.10f, 0.22f, 0.38f, 1f);
+        int Radius         => _theme != null ? Mathf.Clamp(_theme.CornerRadius, 4, 64) : 28;
+        bool Anim          => _theme == null || _theme.EnableAnimations;
+        float ToastSeconds => _theme != null && _theme.ToastSeconds > 0f ? _theme.ToastSeconds : 2.6f;
+        TMP_FontAsset ThemeFont => _theme != null ? _theme.Font : null;
 
         public static CloudSaveUI Instance => _instance;
 
@@ -65,6 +81,7 @@ namespace Wagenheimer.CloudSave
             }
 
             _instance = this;
+            _theme = CloudSaveUITheme.Current;
 
             if (_loadingRoot == null)
                 BuildUI();
@@ -98,7 +115,7 @@ namespace Wagenheimer.CloudSave
 
         void Update()
         {
-            if (_loadingRoot == null || !_loadingRoot.activeSelf) return;
+            if (!Anim || _loadingRoot == null || !_loadingRoot.activeSelf) return;
             if (_spinner != null)
                 _spinner.localRotation = Quaternion.Euler(0, 0, _spinner.localEulerAngles.z - Time.unscaledDeltaTime * 320f);
         }
@@ -149,9 +166,13 @@ namespace Wagenheimer.CloudSave
             {
                 _loadingRoot.SetActive(true);
                 if (_spinner != null) _spinner.localRotation = Quaternion.identity;
-                if (_loadingCg != null) StartCoroutine(FadeScale(_loadingCg, null, true, 0.18f));
+                if (_loadingCg != null)
+                {
+                    if (Anim) StartCoroutine(FadeScale(_loadingCg, null, true, 0.18f));
+                    else _loadingCg.alpha = 1f;
+                }
             }
-            else if (_loadingRoot.activeSelf && _loadingCg != null)
+            else if (_loadingRoot.activeSelf && _loadingCg != null && Anim)
             {
                 StartCoroutine(FadeScale(_loadingCg, null, false, 0.15f, () => _loadingRoot.SetActive(false)));
             }
@@ -163,19 +184,37 @@ namespace Wagenheimer.CloudSave
 
         void ShowToast(string message, Color color)
         {
-            if (_toastRoutine != null) StopCoroutine(_toastRoutine);
-            _toastRoutine = StartCoroutine(ToastRoutine(message, color, ToastGlyph(color)));
+            _toastQueue.Enqueue((message, color));
+            if (!_toastPumping) StartCoroutine(PumpToasts());
         }
 
-        string ToastGlyph(Color color) =>
-            color == ColSuccess ? "✓" :
-            color == ColError   ? "✕" :
-            color == ColWarning ? "⚠" : "☁";
+        IEnumerator PumpToasts()
+        {
+            _toastPumping = true;
+            while (_toastQueue.Count > 0)
+            {
+                var (message, color) = _toastQueue.Dequeue();
+                yield return _toastRoutine = StartCoroutine(ToastRoutine(message, color));
+            }
+            _toastPumping = false;
+        }
 
-        IEnumerator ToastRoutine(string message, Color color, string glyph)
+        UiIcon ToastIconKind(Color color) =>
+            color == ColSuccess ? UiIcon.Check :
+            color == ColError   ? UiIcon.Cross :
+            color == ColWarning ? UiIcon.Warn  : UiIcon.Cloud;
+
+        void SetToastIcon(Color color)
+        {
+            if (_toastIcon == null) return;
+            for (int i = _toastIcon.childCount - 1; i >= 0; i--) Destroy(_toastIcon.GetChild(i).gameObject);
+            UiIcons.Build(_toastIcon.gameObject, ToastIconKind(color), Color.white, 44f);
+        }
+
+        IEnumerator ToastRoutine(string message, Color color)
         {
             _toastText.text = message;
-            if (_toastIcon != null) _toastIcon.text = glyph;
+            SetToastIcon(color);
             _toastBg.color = color;
 
             var cg = _toastRoot.GetComponent<CanvasGroup>();
@@ -185,24 +224,30 @@ namespace Wagenheimer.CloudSave
             float baseY = rt.anchoredPosition.y;
             const float rise = 28f;
 
-            for (float t = 0; t < 0.22f; t += Time.unscaledDeltaTime)
+            if (Anim)
             {
-                float k = EaseOut(t / 0.22f);
-                cg.alpha = k;
-                rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY - rise * (1f - k));
-                yield return null;
+                for (float t = 0; t < 0.22f; t += Time.unscaledDeltaTime)
+                {
+                    float k = EaseOut(t / 0.22f);
+                    cg.alpha = k;
+                    rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY - rise * (1f - k));
+                    yield return null;
+                }
             }
             cg.alpha = 1f;
             rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY);
 
-            yield return new WaitForSecondsRealtime(2.6f);
+            yield return new WaitForSecondsRealtime(ToastSeconds);
 
-            for (float t = 0; t < 0.3f; t += Time.unscaledDeltaTime)
+            if (Anim)
             {
-                float k = t / 0.3f;
-                cg.alpha = 1f - k;
-                rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + rise * k);
-                yield return null;
+                for (float t = 0; t < 0.3f; t += Time.unscaledDeltaTime)
+                {
+                    float k = t / 0.3f;
+                    cg.alpha = 1f - k;
+                    rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY + rise * k);
+                    yield return null;
+                }
             }
             cg.alpha = 0f;
             rt.anchoredPosition = new Vector2(rt.anchoredPosition.x, baseY);
@@ -237,12 +282,25 @@ namespace Wagenheimer.CloudSave
             _conflictTitle.text = data.Reason == CloudConflictReason.AccountSwitched
                 ? CloudSaveLocale.ConflictTitleAccount()
                 : CloudSaveLocale.ConflictTitleCloud();
-            _localInfoText.text = FormatTimestamp(CloudSaveLocale.ConflictLocal(),   data.LocalTimestamp);
-            _cloudInfoText.text = FormatTimestamp(CloudSaveLocale.ConflictCloud(), data.CloudTimestamp);
+
+            (string local, string cloud) summary = default;
+            try { summary = ConflictSummaryProvider?.Invoke(data) ?? default; }
+            catch (Exception e) { Debug.LogWarning("[CloudSaveUI] ConflictSummaryProvider threw: " + e.Message); }
+
+            _localInfoText.text = string.IsNullOrEmpty(summary.local)
+                ? FormatTimestamp(CloudSaveLocale.ConflictLocal(), data.LocalTimestamp)
+                : $"{summary.local}\n<size=80%>{Relative(data.LocalTimestamp)}</size>";
+            _cloudInfoText.text = string.IsNullOrEmpty(summary.cloud)
+                ? FormatTimestamp(CloudSaveLocale.ConflictCloud(), data.CloudTimestamp)
+                : $"{summary.cloud}\n<size=80%>{Relative(data.CloudTimestamp)}</size>";
+
             HighlightNewer(data.LocalTimestamp, data.CloudTimestamp);
             _conflictRoot.SetActive(true);
             if (_conflictCg != null)
-                StartCoroutine(FadeScale(_conflictCg, _conflictCard, true, 0.20f));
+            {
+                if (Anim) StartCoroutine(FadeScale(_conflictCg, _conflictCard, true, 0.20f));
+                else { _conflictCg.alpha = 1f; if (_conflictCard != null) _conflictCard.localScale = Vector3.one; }
+            }
 
             var timeout = Task.Delay(30000, _conflictCts.Token);
             var choice  = _conflictTcs.Task;
@@ -257,7 +315,7 @@ namespace Wagenheimer.CloudSave
         void ResolveConflict(CloudConflictChoice choice)
         {
             _conflictTcs?.TrySetResult(choice);
-            if (_conflictCg != null && isActiveAndEnabled)
+            if (_conflictCg != null && isActiveAndEnabled && Anim)
                 StartCoroutine(FadeScale(_conflictCg, _conflictCard, false, 0.14f, () => _conflictRoot.SetActive(false)));
             else
                 _conflictRoot.SetActive(false);
@@ -271,7 +329,7 @@ namespace Wagenheimer.CloudSave
             SetCardHighlight(_cloudCardRt, cloudNewer);
         }
 
-        static void SetCardHighlight(RectTransform card, bool on)
+        void SetCardHighlight(RectTransform card, bool on)
         {
             var outline = card.GetComponent<Outline>();
             if (outline == null) outline = card.gameObject.AddComponent<Outline>();
@@ -290,7 +348,19 @@ namespace Wagenheimer.CloudSave
         {
             if (ticks <= 0) return $"{label}\n{CloudSaveLocale.ConflictNone()}";
             var dt = new DateTime(ticks, DateTimeKind.Utc).ToLocalTime();
-            return $"{label}\n{dt:dd/MM/yyyy  HH:mm}";
+            return $"{label}\n{dt.ToString("g", CultureInfo.CurrentCulture)}\n<size=80%>{Relative(ticks)}</size>";
+        }
+
+        static string Relative(long ticks)
+        {
+            if (ticks <= 0) return "";
+            var span = DateTime.UtcNow - new DateTime(ticks, DateTimeKind.Utc);
+            if (span.TotalSeconds < 0) return "";
+            if (span.TotalMinutes < 1) return "just now";
+            if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+            if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
+            if (span.TotalDays < 30) return $"{(int)span.TotalDays}d ago";
+            return $"{(int)(span.TotalDays / 30)}mo ago";
         }
 
         // ── Static factory ─────────────────────────────────────────────────
@@ -353,7 +423,7 @@ namespace Wagenheimer.CloudSave
             _toastRoot    = FindChild("Toast");
             _toastBg      = FindChild("Toast")?.GetComponent<Image>();
             _toastText    = FindChild("ToastText")?.GetComponent<TextMeshProUGUI>();
-            _toastIcon    = FindChild("ToastIcon")?.GetComponent<TextMeshProUGUI>();
+            _toastIcon    = FindChild("ToastIcon")?.GetComponent<RectTransform>();
             _conflictRoot = FindChild("Conflict");
             _conflictTitle = FindChild("Title")?.GetComponent<TextMeshProUGUI>();
             _localInfoText = FindChild("LocalInfo")?.GetComponent<TextMeshProUGUI>();
@@ -428,11 +498,11 @@ namespace Wagenheimer.CloudSave
             AddShadow(card);
 
             var track = MakeImage(card.gameObject, "SpinnerTrack", new Color(1, 1, 1, 0.08f));
-            track.sprite = UiSprites.Ring();
+            UiGeneratedSprite.Attach(track, UiGeneratedSprite.Kind.Ring);
             CenterInParent(track.rectTransform, new Vector2(0.5f, 0.62f), 78);
 
             var arc = MakeImage(card.gameObject, "Spinner", ColAccent);
-            arc.sprite = UiSprites.Ring();
+            UiGeneratedSprite.Attach(arc, UiGeneratedSprite.Kind.Ring);
             arc.type = Image.Type.Filled;
             arc.fillMethod = Image.FillMethod.Radial360;
             arc.fillClockwise = true;
@@ -463,7 +533,7 @@ namespace Wagenheimer.CloudSave
             var safe = Stretch((RectTransform)safeGo.transform);
             safe.gameObject.AddComponent<UiSafeArea>();
 
-            var pill = MakeRounded(safe.gameObject, "Toast", ColSuccess, 26);
+            var pill = MakeRounded(safe.gameObject, "Toast", ColSuccess, Mathf.Max(18, Radius));
             _toastRoot = pill.gameObject;
             _toastBg = pill.GetComponent<Image>();
             pill.anchorMin = pill.anchorMax = new Vector2(0.5f, 0f);
@@ -475,10 +545,16 @@ namespace Wagenheimer.CloudSave
             cg.alpha = 0f;
             cg.blocksRaycasts = false;
 
-            _toastIcon = MakeText(_toastRoot, "ToastIcon", "✓", Color.white, 34, TextAlignmentOptions.Center,
-                new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(18, 0), new Vector2(78, 0));
+            var iconGo = new GameObject("ToastIcon", typeof(RectTransform));
+            iconGo.transform.SetParent(_toastRoot.transform, false);
+            _toastIcon = (RectTransform)iconGo.transform;
+            _toastIcon.anchorMin = _toastIcon.anchorMax = new Vector2(0f, 0.5f);
+            _toastIcon.pivot = new Vector2(0.5f, 0.5f);
+            _toastIcon.sizeDelta = new Vector2(48, 48);
+            _toastIcon.anchoredPosition = new Vector2(50, 0);
+
             _toastText = MakeText(_toastRoot, "ToastText", "", Color.white, 27, TextAlignmentOptions.Left,
-                new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(86, 6), new Vector2(-20, -6));
+                new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(90, 6), new Vector2(-20, -6));
             _toastText.fontStyle = FontStyles.SemiBold;
             _toastText.enableWordWrapping = false;
             _toastText.overflowMode = TextOverflowModes.Ellipsis;
@@ -493,13 +569,14 @@ namespace Wagenheimer.CloudSave
             _conflictRoot = overlay.gameObject;
             _conflictCg = _conflictRoot.AddComponent<CanvasGroup>();
 
-            _conflictCard = MakeRounded(_conflictRoot, "ConflictCard", ColPanel, 30);
+            _conflictCard = MakeRounded(_conflictRoot, "ConflictCard", ColPanel, Radius);
             Center(_conflictCard, 900, 760);
             AddShadow(_conflictCard);
             var card = _conflictCard.gameObject;
 
-            MakeText(card, "CloudBadge", "☁", ColAccent, 60, TextAlignmentOptions.Center,
-                new Vector2(0f, 0.86f), new Vector2(1f, 1f), new Vector2(0, -14), new Vector2(0, -10));
+            var badge = UiIcons.Build(card, UiIcon.Cloud, ColAccent, 80f);
+            badge.anchorMin = badge.anchorMax = new Vector2(0.5f, 0.92f);
+            badge.anchoredPosition = Vector2.zero;
 
             _conflictTitle = MakeText(card, "Title", CloudSaveLocale.ConflictTitleCloud(),
                 ColText, 38, TextAlignmentOptions.Center,
@@ -510,23 +587,24 @@ namespace Wagenheimer.CloudSave
                 ColTextDim, 25, TextAlignmentOptions.Center,
                 new Vector2(0.08f, 0.66f), new Vector2(0.92f, 0.77f), Vector2.zero, Vector2.zero);
 
-            _localCardRt = MakeRounded(card, "LocalCard", ColLocalCard, 20);
+            int infoRadius = Mathf.Max(12, Radius - 8);
+            _localCardRt = MakeRounded(card, "LocalCard", ColLocalCard, infoRadius);
             _localCardRt.anchorMin = new Vector2(0.05f, 0.30f);
             _localCardRt.anchorMax = new Vector2(0.485f, 0.63f);
             _localCardRt.offsetMin = _localCardRt.offsetMax = Vector2.zero;
-            MakeText(_localCardRt.gameObject, "LocalIcon", "📱", ColText, 34, TextAlignmentOptions.Center,
-                new Vector2(0, 0.62f), new Vector2(1, 1f), Vector2.zero, new Vector2(0, -8));
+            var li = UiIcons.Build(_localCardRt.gameObject, UiIcon.Device, ColText, 46f);
+            li.anchorMin = li.anchorMax = new Vector2(0.5f, 0.80f); li.anchoredPosition = Vector2.zero;
             MakeText(_localCardRt.gameObject, "LocalCaption", CloudSaveLocale.ConflictLocal(), ColTextDim, 20,
                 TextAlignmentOptions.Center, new Vector2(0, 0.44f), new Vector2(1, 0.62f), Vector2.zero, Vector2.zero);
             _localInfoText = MakeText(_localCardRt.gameObject, "LocalInfo", "", ColText, 24, TextAlignmentOptions.Center,
                 new Vector2(0.06f, 0.06f), new Vector2(0.94f, 0.44f), Vector2.zero, Vector2.zero);
 
-            _cloudCardRt = MakeRounded(card, "CloudCard", ColCloudCard, 20);
+            _cloudCardRt = MakeRounded(card, "CloudCard", ColCloudCard, infoRadius);
             _cloudCardRt.anchorMin = new Vector2(0.515f, 0.30f);
             _cloudCardRt.anchorMax = new Vector2(0.95f, 0.63f);
             _cloudCardRt.offsetMin = _cloudCardRt.offsetMax = Vector2.zero;
-            MakeText(_cloudCardRt.gameObject, "CloudIcon", "☁", ColText, 34, TextAlignmentOptions.Center,
-                new Vector2(0, 0.62f), new Vector2(1, 1f), Vector2.zero, new Vector2(0, -8));
+            var ci = UiIcons.Build(_cloudCardRt.gameObject, UiIcon.Cloud, ColText, 46f);
+            ci.anchorMin = ci.anchorMax = new Vector2(0.5f, 0.80f); ci.anchoredPosition = Vector2.zero;
             MakeText(_cloudCardRt.gameObject, "CloudCaption", CloudSaveLocale.ConflictCloud(), ColTextDim, 20,
                 TextAlignmentOptions.Center, new Vector2(0, 0.44f), new Vector2(1, 0.62f), Vector2.zero, Vector2.zero);
             _cloudInfoText = MakeText(_cloudCardRt.gameObject, "CloudInfo", "", ColText, 24, TextAlignmentOptions.Center,
@@ -573,18 +651,18 @@ namespace Wagenheimer.CloudSave
         RectTransform MakeRounded(GameObject parent, string name, Color color, int radius)
         {
             var img = MakeImage(parent, name, color);
-            img.sprite = UiSprites.RoundedRect(radius);
             img.type = Image.Type.Sliced;
             img.pixelsPerUnitMultiplier = 1f;
+            UiGeneratedSprite.Attach(img, UiGeneratedSprite.Kind.RoundedRect, radius);
             return img.rectTransform;
         }
 
         void AddShadow(RectTransform card)
         {
             var img = MakeImage(card.parent.gameObject, card.name + "Shadow", new Color(0, 0, 0, 0.35f));
-            img.sprite = UiSprites.Shadow(34);
             img.type = Image.Type.Sliced;
             img.raycastTarget = false;
+            UiGeneratedSprite.Attach(img, UiGeneratedSprite.Kind.Shadow, 34);
             var rt = img.rectTransform;
             rt.anchorMin = card.anchorMin; rt.anchorMax = card.anchorMax; rt.pivot = card.pivot;
             rt.sizeDelta = card.sizeDelta + new Vector2(46, 46);
@@ -602,6 +680,7 @@ namespace Wagenheimer.CloudSave
             rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
             var txt = go.AddComponent<TextMeshProUGUI>();
+            if (ThemeFont != null) txt.font = ThemeFont;
             txt.text = content;
             txt.color = color;
             txt.fontSize = fontSize;
