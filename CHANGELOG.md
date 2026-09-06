@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.23.0] - 2026-09-06
+
+### Added
+- let the built-in UIs use the game's existing Canvas
+
 ## [4.22.0] - 2026-09-06
 
 ### Added
