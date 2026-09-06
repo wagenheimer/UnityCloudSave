@@ -73,16 +73,14 @@ namespace Wagenheimer.CloudSave.Editor
                 AssetDatabase.Refresh();
             }
 
-            var saved = PrefabUtility.SaveAsPrefabAsset(go, path);
+            var saved = PrefabUtility.SaveAsPrefabAsset(go, path, out bool success);
             Object.DestroyImmediate(go);
 
-            if (saved != null)
+            if (success && saved != null)
             {
-                var instance = Object.Instantiate(saved);
-                instance.name = go.name;
                 Debug.Log($"[CloudSave] Prefab generated at {path}");
-                Selection.activeGameObject = instance;
-                EditorGUIUtility.PingObject(instance);
+                Selection.activeObject = saved;
+                EditorGUIUtility.PingObject(saved);
             }
             else
             {
