@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.21.1] - 2026-09-06
+
+### Fixed
+- FontStyles.SemiBold does not exist in TMP — use FontStyles.Bold
+
 ## [4.21.0] - 2026-09-06
 
 ### Added
