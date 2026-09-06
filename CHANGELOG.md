@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.19.1] - 2026-09-06
+
+### Fixed
+- prefab generator MissingReferenceException + polish the UI tab
+
 ## [4.19.0] - 2026-09-06
 
 ### Added
