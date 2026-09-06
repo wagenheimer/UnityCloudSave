@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.20.0] - 2026-09-06
+
+### Added
+- redesign CloudSaveUI — rounded, animated, safe-area aware
+
 ## [4.19.1] - 2026-09-06
 
 ### Fixed
