@@ -37,6 +37,23 @@ namespace Wagenheimer.CloudSave.Editor.Setup
         public string ConfirmedAtUtc;
     }
 
+    /// <summary>Which SDK UI responsibility a project's own form covers.</summary>
+    public enum UiHook { Conflict, SyncStatus, Auth, Loading }
+
+    /// <summary>
+    /// A project-owned form registered as the replacement for one of the package's built-in UIs
+    /// (e.g. Day of the Dead's formCloudSave standing in for CloudSaveUI's conflict dialog).
+    /// </summary>
+    [Serializable]
+    public sealed class CustomUiRegistration
+    {
+        public string Id;
+        public string DisplayName;
+        public UiHook Hook;
+        public string PrefabPath;   // project-relative asset path, resolved via AssetDatabase
+        public string Note;
+    }
+
     /// <summary>
     /// Read side of the persisted state, so the engines can be unit-tested without a ScriptableObject.
     /// </summary>
@@ -57,9 +74,25 @@ namespace Wagenheimer.CloudSave.Editor.Setup
 
         [SerializeField] List<ValidationRecord> _records = new();
         [SerializeField] List<ManualConfirmation> _manual = new();
+        [SerializeField] List<CustomUiRegistration> _customUis = new();
 
         public IReadOnlyList<ValidationRecord> Records => _records;
         public IReadOnlyList<ManualConfirmation> ManualConfirmations => _manual;
+        public IReadOnlyList<CustomUiRegistration> CustomUis => _customUis;
+
+        public void AddOrUpdateCustomUi(CustomUiRegistration reg)
+        {
+            var existing = _customUis.FirstOrDefault(x => x.Id == reg.Id);
+            if (existing == null) _customUis.Add(reg);
+            else { existing.DisplayName = reg.DisplayName; existing.Hook = reg.Hook; existing.PrefabPath = reg.PrefabPath; existing.Note = reg.Note; }
+            Save();
+        }
+
+        public void RemoveCustomUi(string id)
+        {
+            _customUis.RemoveAll(x => x.Id == id);
+            Save();
+        }
 
         public ValidationRecord LatestRecordFor(string stepId)
         {

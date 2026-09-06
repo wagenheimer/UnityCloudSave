@@ -19,18 +19,22 @@ namespace Wagenheimer.CloudSave.Editor.Setup
         /// <summary>Cached line scan of the project's C# — never null (empty when Assets/ is absent).</summary>
         public CodeScan Code { get; }
 
-        public SetupContext(string projectRoot, CodeScan code = null)
+        /// <summary>Project-owned forms registered as replacements for the built-in UIs. Never null.</summary>
+        public IReadOnlyList<CustomUiRegistration> CustomUis { get; }
+
+        public SetupContext(string projectRoot, CodeScan code = null, IReadOnlyList<CustomUiRegistration> customUis = null)
         {
             ProjectRoot = projectRoot;
             Code = code ?? CodeScan.Build(projectRoot);
+            CustomUis = customUis ?? Array.Empty<CustomUiRegistration>();
         }
 
-        public static SetupContext ForCurrentProject()
+        public static SetupContext ForCurrentProject(IReadOnlyList<CustomUiRegistration> customUis = null)
         {
             // Application.dataPath is <project>/Assets
             var assets = UnityEngine.Application.dataPath;
             var root = System.IO.Directory.GetParent(assets)?.FullName ?? assets;
-            return new SetupContext(root);
+            return new SetupContext(root, null, customUis);
         }
     }
 

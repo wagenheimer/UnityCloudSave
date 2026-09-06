@@ -90,15 +90,15 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                     @"\[(System\.)?Serializable\]", "save.serializable",
                     "[Serializable] type found", "Mark your save class [Serializable] — JsonUtility requires it."),
 
-                [Ids.UiCloudSave] = new CodePresenceDetector(
-                    @"CloudSaveUI\.Create", "ui.cloudsave",
-                    "CloudSaveUI.Create() called", "Optional: CloudSaveUI.Create() — loading overlay, toasts, conflict dialog."),
-                [Ids.UiSyncStatus] = new CodePresenceDetector(
-                    @"SyncStatusUI\.Create", "ui.syncstatus",
-                    "SyncStatusUI.Create() called", "Optional: SyncStatusUI.Create() — corner Synced/Syncing/Offline indicator."),
-                [Ids.UiAuth] = new CodePresenceDetector(
-                    @"CloudAuthUI\.Create", "ui.auth",
-                    "CloudAuthUI.Create() called", "Optional: CloudAuthUI.Create() — account link modal."),
+                [Ids.UiCloudSave] = new CustomUiDetector(
+                    @"CloudSaveUI\.Create", "CloudSaveUI", UiHook.Conflict, "ui.cloudsave",
+                    "Optional: CloudSaveUI.Create() — loading overlay, toasts, conflict dialog. Or register your own form in the UI tab."),
+                [Ids.UiSyncStatus] = new CustomUiDetector(
+                    @"SyncStatusUI\.Create", "SyncStatusUI", UiHook.SyncStatus, "ui.syncstatus",
+                    "Optional: SyncStatusUI.Create() — corner Synced/Syncing/Offline indicator. Or register your own."),
+                [Ids.UiAuth] = new CustomUiDetector(
+                    @"CloudAuthUI\.Create", "CloudAuthUI", UiHook.Auth, "ui.auth",
+                    "Optional: CloudAuthUI.Create() — account link modal. Or register your own form."),
 
                 [Ids.CodeAuthUpgrade] = new CodePresenceDetector(
                     @"Link(GooglePlayGames|AppleGameCenter|Apple|Facebook|Google)Async", "code.authupgrade",

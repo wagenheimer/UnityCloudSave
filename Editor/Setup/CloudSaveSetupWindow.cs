@@ -21,12 +21,16 @@ namespace Wagenheimer.CloudSave.Editor.Setup
             w.minSize = new Vector2(560, 520);
         }
 
+        enum Tab { Steps, Ui }
+
         SetupRegistry _registry;
         SetupContext _ctx;
         CloudSaveSetupState _state;
         SetupSnapshot _snapshot;
         Vector2 _scroll;
         readonly HashSet<string> _expanded = new();
+        readonly UiTab _uiTab = new();
+        Tab _tab = Tab.Steps;
         bool _busy;
         string _busyLabel;
 
@@ -43,13 +47,13 @@ namespace Wagenheimer.CloudSave.Editor.Setup
         void OnEnable()
         {
             _registry = new SetupRegistry();
-            _ctx = SetupContext.ForCurrentProject();
             Recompute();
         }
 
         void Recompute()
         {
             _state = CloudSaveSetupState.GetOrCreate();
+            _ctx = SetupContext.ForCurrentProject(_state.CustomUis);
             _snapshot = SetupModel.Compute(_registry, _ctx, _state);
             Repaint();
         }
@@ -61,29 +65,38 @@ namespace Wagenheimer.CloudSave.Editor.Setup
 
             using (new EditorGUILayout.VerticalScope(new GUIStyle { padding = new RectOffset(8, 8, 6, 6) }))
             {
-                using (new EditorGUI.DisabledScope(_busy))
+                using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button(_busy ? $"Working… {_busyLabel}" : "↻  Refresh", GUILayout.Height(26)))
-                        Recompute();
+                    _tab = (Tab)GUILayout.Toolbar((int)_tab, new[] { "Steps", "UI" }, GUILayout.Height(22));
+                    using (new EditorGUI.DisabledScope(_busy))
+                        if (GUILayout.Button(_busy ? $"…{_busyLabel}" : "↻", GUILayout.Height(22), GUILayout.Width(28)))
+                            Recompute();
                 }
+                EditorGUILayout.Space(4);
 
                 if (_snapshot == null) return;
 
-                DrawMeters(_snapshot);
-                DrawNextAction(_snapshot);
-
-                EditorGUILayout.Space(6);
                 _scroll = EditorGUILayout.BeginScrollView(_scroll);
-                foreach (var group in _snapshot.Steps
-                             .Where(e => e.State != StepState.NotApplicable)
-                             .GroupBy(e => e.Definition.Category)
-                             .OrderBy(g => (int)g.Key))
-                {
-                    EditorGUILayout.LabelField(group.Key.ToString(), EditorStyles.miniBoldLabel);
-                    foreach (var eval in group) DrawStepCard(eval);
-                    EditorGUILayout.Space(4);
-                }
+                if (_tab == Tab.Steps) DrawStepsTab();
+                else _uiTab.Draw(_state, _snapshot, Recompute);
                 EditorGUILayout.EndScrollView();
+            }
+        }
+
+        void DrawStepsTab()
+        {
+            DrawMeters(_snapshot);
+            DrawNextAction(_snapshot);
+            EditorGUILayout.Space(6);
+
+            foreach (var group in _snapshot.Steps
+                         .Where(e => e.State != StepState.NotApplicable)
+                         .GroupBy(e => e.Definition.Category)
+                         .OrderBy(g => (int)g.Key))
+            {
+                EditorGUILayout.LabelField(group.Key.ToString(), EditorStyles.miniBoldLabel);
+                foreach (var eval in group) DrawStepCard(eval);
+                EditorGUILayout.Space(4);
             }
         }
 
