@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -48,14 +49,15 @@ namespace Wagenheimer.CloudSave
 
         public void SetStatus(SyncStatus status)
         {
+            _status = status;
             _statusText.text = CloudSaveLocale.SyncStatusText(status);
             _icon.color = status switch
             {
-                SyncStatus.Synced  => _colorSynced,
-                SyncStatus.Syncing => _colorSyncing,
-                SyncStatus.Offline => _colorOffline,
-                SyncStatus.Error   => _colorError,
-                _ => _colorSynced
+                SyncStatus.Synced  => ColSynced,
+                SyncStatus.Syncing => ColSyncing,
+                SyncStatus.Offline => ColOffline,
+                SyncStatus.Error   => ColError_,
+                _ => ColSynced
             };
 
             if (status == SyncStatus.Synced)
@@ -104,6 +106,7 @@ namespace Wagenheimer.CloudSave
             }
 
             _instance = this;
+            _theme = CloudSaveUITheme.Current;
 
             if (_root == null)
                 BuildUI();
@@ -111,6 +114,9 @@ namespace Wagenheimer.CloudSave
                 UpdateCanvasSortOrder();
 
             DontDestroyOnLoad(gameObject);
+
+            if (_cg != null && (_theme == null || _theme.EnableAnimations))
+                StartCoroutine(FadeIn());
 
             // If sync already ran before UI was created, use the last result
             if (CloudSync.LastResult.HasValue)
@@ -224,35 +230,56 @@ namespace Wagenheimer.CloudSave
 
         // ── Procedural UI (fallback) ────────────────────────────────────────
 
+        IEnumerator FadeIn()
+        {
+            _cg.alpha = 0f;
+            for (float t = 0; t < 0.25f; t += Time.unscaledDeltaTime)
+            {
+                _cg.alpha = Mathf.Clamp01(t / 0.25f);
+                yield return null;
+            }
+            _cg.alpha = 1f;
+        }
+
         void BuildUI()
         {
-            var canvas = MakeCanvas("SyncStatusCanvas", _sortOrder);
-            _root = MakePanel(canvas.gameObject, "Root",
-                new Color(0.05f, 0.05f, 0.05f, 0.75f),
-                new Vector2(0.70f, 0.00f), new Vector2(0.98f, 0.10f),
-                Vector2.zero, Vector2.zero);
+            var canvas = EnsureCanvas();
+
+            _root = MakePanel(canvas.gameObject, "Root", ColPanel,
+                new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero, Vector2.zero, rounded: Radius);
+            var rootRt = _root.GetComponent<RectTransform>();
+            rootRt.pivot = new Vector2(1f, 0f);
+            rootRt.sizeDelta = new Vector2(430, 120);
+            rootRt.anchoredPosition = new Vector2(-24, 24);
+            _cg = _root.AddComponent<CanvasGroup>();
+            _cg.blocksRaycasts = false;
+
+            var shadow = MakePanel(canvas.gameObject, "RootShadow", new Color(0, 0, 0, 0.30f),
+                new Vector2(1f, 0f), new Vector2(1f, 0f), Vector2.zero, Vector2.zero, rounded: 34, shadow: true);
+            var shRt = shadow.GetComponent<RectTransform>();
+            shRt.pivot = new Vector2(1f, 0f);
+            shRt.sizeDelta = rootRt.sizeDelta + new Vector2(40, 40);
+            shRt.anchoredPosition = rootRt.anchoredPosition + new Vector2(0, -8);
+            shRt.SetSiblingIndex(rootRt.GetSiblingIndex());
 
             var row = MakePanel(_root, "Row", Color.clear,
-                new Vector2(0f, 0.40f), new Vector2(1f, 1f),
-                new Vector2(8, 2), new Vector2(-8, -2));
+                new Vector2(0f, 0.42f), new Vector2(1f, 1f), new Vector2(14, 0), new Vector2(-14, -4));
 
             _icon = MakeIcon(row);
 
             _statusText = MakeText(row, "StatusText", CloudSaveLocale.SyncStatusText(SyncStatus.Offline),
-                _colorOffline, 20, TextAlignmentOptions.Left,
-                new Vector2(0.08f, 0f), new Vector2(0.60f, 1f),
-                Vector2.zero, Vector2.zero);
+                ColText, 22, TextAlignmentOptions.Left,
+                new Vector2(0.14f, 0f), new Vector2(0.62f, 1f), Vector2.zero, Vector2.zero);
+            _statusText.fontStyle = FontStyles.Bold;
 
             _lastSyncText = MakeText(row, "LastSync", "",
-                new Color(0.60f, 0.60f, 0.60f), 16, TextAlignmentOptions.Right,
-                new Vector2(0.60f, 0f), new Vector2(1f, 1f),
-                Vector2.zero, Vector2.zero);
+                ColTextDim, 17, TextAlignmentOptions.Right,
+                new Vector2(0.60f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero);
             _lastSyncText.gameObject.SetActive(false);
 
             _detailText = MakeText(_root, "Detail", "",
-                new Color(0.55f, 0.55f, 0.60f), 14, TextAlignmentOptions.Left,
-                new Vector2(0f, 0f), new Vector2(1f, 0.40f),
-                new Vector2(10, 2), new Vector2(-10, 0));
+                ColTextDim, 15, TextAlignmentOptions.Left,
+                new Vector2(0f, 0f), new Vector2(1f, 0.42f), new Vector2(16, 2), new Vector2(-14, 0));
         }
 
         Image MakeIcon(GameObject parent)
@@ -260,38 +287,61 @@ namespace Wagenheimer.CloudSave
             var go = new GameObject("Icon", typeof(RectTransform));
             go.transform.SetParent(parent.transform, false);
             var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0f, 0.2f);
-            rt.anchorMax = new Vector2(0f, 0.8f);
-            rt.sizeDelta = new Vector2(16, 16);
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(30, 30);
+            rt.anchoredPosition = new Vector2(20, 0);
             var img = go.AddComponent<Image>();
-            img.color = _colorSynced;
+            img.color = ColSynced;
+            img.type = Image.Type.Filled;
+            img.fillMethod = Image.FillMethod.Radial360;
+            img.fillAmount = 0.78f;
+            UiGeneratedSprite.Attach(img, UiGeneratedSprite.Kind.Ring);
             return img;
         }
 
-        Canvas MakeCanvas(string goName, int sortOrder)
+        Canvas EnsureCanvas()
         {
-            var go = new GameObject(goName);
-            go.transform.SetParent(transform, false);
-            var canvas = go.AddComponent<Canvas>();
+            var canvas = GetComponentInChildren<Canvas>(true);
+            if (canvas == null)
+            {
+                var go = new GameObject("SyncStatusCanvas", typeof(RectTransform));
+                go.transform.SetParent(transform, false);
+                canvas = go.AddComponent<Canvas>();
+            }
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = sortOrder;
-            var scaler = go.AddComponent<CanvasScaler>();
+            canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, _sortOrder);
+            var scaler = canvas.GetComponent<CanvasScaler>() ?? canvas.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080, 1920);
             scaler.matchWidthOrHeight = 0.5f;
-            go.AddComponent<GraphicRaycaster>();
+            if (canvas.GetComponent<GraphicRaycaster>() == null)
+                canvas.gameObject.AddComponent<GraphicRaycaster>();
             return canvas;
         }
 
         GameObject MakePanel(GameObject parent, string name, Color color,
-            Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax)
+            Vector2 anchorMin, Vector2 anchorMax, Vector2 offsetMin, Vector2 offsetMax,
+            int rounded = 0, bool shadow = false)
         {
             var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent.transform, false);
             var rt = go.GetComponent<RectTransform>();
             rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
-            go.AddComponent<Image>().color = color;
+            var img = go.AddComponent<Image>();
+            img.color = color;
+            if (shadow)
+            {
+                img.type = Image.Type.Sliced;
+                img.raycastTarget = false;
+                UiGeneratedSprite.Attach(img, UiGeneratedSprite.Kind.Shadow, Mathf.Max(8, rounded));
+            }
+            else if (rounded > 0)
+            {
+                img.type = Image.Type.Sliced;
+                UiGeneratedSprite.Attach(img, UiGeneratedSprite.Kind.RoundedRect, rounded);
+            }
             return go;
         }
 
@@ -305,10 +355,12 @@ namespace Wagenheimer.CloudSave
             rt.anchorMin = anchorMin; rt.anchorMax = anchorMax;
             rt.offsetMin = offsetMin; rt.offsetMax = offsetMax;
             var txt = go.AddComponent<TextMeshProUGUI>();
+            if (_theme != null && _theme.Font != null) txt.font = _theme.Font;
             txt.text = content;
             txt.color = color;
             txt.fontSize = fontSize;
             txt.alignment = alignment;
+            txt.raycastTarget = false;
             return txt;
         }
 
@@ -317,6 +369,7 @@ namespace Wagenheimer.CloudSave
         void SetupReferencesFromChildren()
         {
             _root = FindChild("Root");
+            _cg = FindChild("Root")?.GetComponent<CanvasGroup>();
             _icon = FindChild("Icon")?.GetComponent<Image>();
             _statusText = FindChild("StatusText")?.GetComponent<TextMeshProUGUI>();
             _detailText = FindChild("Detail")?.GetComponent<TextMeshProUGUI>();
