@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.19.0] - 2026-09-06
+
+### Added
+- Hub "UI" tab — see, generate, preview and drive every Cloud Save UI
+
 ## [4.18.0] - 2026-09-06
 
 ### Added
