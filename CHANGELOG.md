@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.18.0] - 2026-09-06
+
+### Added
+- CloudSaveController — one drop-in object replaces the manual glue
+
 ## [4.17.0] - 2026-09-05
 
 ### Added
