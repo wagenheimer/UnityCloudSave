@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.21.0] - 2026-09-06
+
+### Added
+- CloudSaveUI theme, font-free icons, reduced-motion, toast queue, diff summary
+
 ## [4.20.0] - 2026-09-06
 
 ### Added
