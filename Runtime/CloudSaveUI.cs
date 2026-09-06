@@ -82,13 +82,15 @@ namespace Wagenheimer.CloudSave
 
             _instance = this;
             _theme = CloudSaveUITheme.Current;
+            MaybeAttachToHost();
 
             if (_loadingRoot == null)
                 BuildUI();
             else
                 UpdateCanvasSortOrder();
 
-            DontDestroyOnLoad(gameObject);
+            if (!_usingExternalCanvas)
+                DontDestroyOnLoad(gameObject);
 
             CloudSync.OnSyncStarted     += HandleSyncStarted;
             CloudSync.OnSyncCompleted   += HandleSyncCompleted;
@@ -461,9 +463,38 @@ namespace Wagenheimer.CloudSave
             BuildConflictDialog(canvas);
         }
 
-        /// <summary>Reuses a Canvas already in this hierarchy (e.g. a customised prefab); otherwise creates one.</summary>
+        bool _usingExternalCanvas;
+
+        /// <summary>
+        /// If this UI sits under a Canvas already (dropped into a scene) or a host Canvas was set via
+        /// <see cref="CloudSaveUiHost"/>, adopt it and skip DontDestroyOnLoad. Otherwise nothing here.
+        /// </summary>
+        void MaybeAttachToHost()
+        {
+            if (GetComponentInParent<Canvas>() != null) { _usingExternalCanvas = true; return; }
+            if (CloudSaveUiHost.Canvas != null)
+            {
+                transform.SetParent(CloudSaveUiHost.Canvas.transform, false);
+                _usingExternalCanvas = true;
+            }
+        }
+
+        /// <summary>
+        /// The Canvas to build into: an existing host/ancestor Canvas (left untouched except for a
+        /// GraphicRaycaster), a Canvas already under this UI (customised prefab), or a fresh
+        /// ScreenSpaceOverlay one for the zero-config case.
+        /// </summary>
         Canvas EnsureCanvas()
         {
+            var host = CloudSaveUiHost.Resolve(this);
+            if (host != null)
+            {
+                _usingExternalCanvas = true;
+                if (host.GetComponent<GraphicRaycaster>() == null)
+                    host.gameObject.AddComponent<GraphicRaycaster>();
+                return host;
+            }
+
             var canvas = GetComponentInChildren<Canvas>(true);
             if (canvas == null)
             {

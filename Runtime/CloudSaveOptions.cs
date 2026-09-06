@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Wagenheimer.CloudSave
 {
@@ -86,6 +87,12 @@ namespace Wagenheimer.CloudSave
         public Func<byte[], string> DescribeSave;
 
         // ── Optional: auto-save ──────────────────────────────────────────
+
+        /// <summary>
+        /// Your game's existing Canvas. When set, the built-in UIs parent their content under it
+        /// instead of creating their own overlay canvas (and skip DontDestroyOnLoad). Optional.
+        /// </summary>
+        public Canvas UiCanvas;
 
         /// <summary>When true (default), <see cref="CloudSaveController.MarkDirty"/> debounces an upload. When false it uploads immediately.</summary>
         public bool AutoSave = true;

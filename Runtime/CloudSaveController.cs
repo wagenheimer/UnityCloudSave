@@ -69,6 +69,8 @@ namespace Wagenheimer.CloudSave
         {
             if (_started) return;
 
+            if (_o.UiCanvas != null) CloudSaveUiHost.Canvas = _o.UiCanvas;
+
             CloudSync.Configure(_o.SaveKey);
             CloudSync.ConflictResolver = _o.ConflictResolver;
             if (_o.OnSyncCompleted != null) CloudSync.OnSyncCompleted += _o.OnSyncCompleted;

@@ -31,6 +31,7 @@ namespace Wagenheimer.CloudSave
         SyncStatus _status = SyncStatus.Offline;
         DateTime _lastSyncTime;
         bool _hasLastSync;
+        bool _usingExternalCanvas;
         CloudSaveUITheme _theme;
 
         Color ColSynced  => _theme != null ? _theme.Success : _colorSynced;
@@ -108,12 +109,20 @@ namespace Wagenheimer.CloudSave
             _instance = this;
             _theme = CloudSaveUITheme.Current;
 
+            if (GetComponentInParent<Canvas>() != null) _usingExternalCanvas = true;
+            else if (CloudSaveUiHost.Canvas != null)
+            {
+                transform.SetParent(CloudSaveUiHost.Canvas.transform, false);
+                _usingExternalCanvas = true;
+            }
+
             if (_root == null)
                 BuildUI();
             else
                 UpdateCanvasSortOrder();
 
-            DontDestroyOnLoad(gameObject);
+            if (!_usingExternalCanvas)
+                DontDestroyOnLoad(gameObject);
 
             if (_cg != null && (_theme == null || _theme.EnableAnimations))
                 StartCoroutine(FadeIn());
@@ -302,6 +311,15 @@ namespace Wagenheimer.CloudSave
 
         Canvas EnsureCanvas()
         {
+            var host = CloudSaveUiHost.Resolve(this);
+            if (host != null)
+            {
+                _usingExternalCanvas = true;
+                if (host.GetComponent<GraphicRaycaster>() == null)
+                    host.gameObject.AddComponent<GraphicRaycaster>();
+                return host;
+            }
+
             var canvas = GetComponentInChildren<Canvas>(true);
             if (canvas == null)
             {

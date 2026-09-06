@@ -114,6 +114,9 @@ namespace Wagenheimer.CloudSave
         {
             _theme = CloudSaveUITheme.Current;
 
+            if (GetComponentInParent<Canvas>() == null && CloudSaveUiHost.Canvas != null)
+                transform.SetParent(CloudSaveUiHost.Canvas.transform, false);
+
             if (_cardRoot == null)
                 BuildUI();
 
@@ -270,6 +273,14 @@ namespace Wagenheimer.CloudSave
 
         Canvas EnsureCanvas()
         {
+            var host = CloudSaveUiHost.Resolve(this);
+            if (host != null)
+            {
+                if (host.GetComponent<GraphicRaycaster>() == null)
+                    host.gameObject.AddComponent<GraphicRaycaster>();
+                return host;
+            }
+
             var canvas = GetComponentInChildren<Canvas>(true);
             if (canvas == null)
             {
