@@ -3,7 +3,8 @@
     "rootNamespace": "Wagenheimer.CloudSave.Editor",
     "references": [
         "Wagenheimer.CloudSave",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "Wagenheimer.PackageHub.Editor"
     ],
     "includePlatforms": [
         "Editor"

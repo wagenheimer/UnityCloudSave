@@ -588,7 +588,7 @@ namespace Wagenheimer.CloudSave
             _toastText = MakeText(_toastRoot, "ToastText", "", Color.white, 27, TextAlignmentOptions.Left,
                 new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(90, 6), new Vector2(-20, -6));
             _toastText.fontStyle = FontStyles.Bold;
-            _toastText.enableWordWrapping = false;
+            _toastText.textWrappingMode = TextWrappingModes.NoWrap;
             _toastText.overflowMode = TextOverflowModes.Ellipsis;
 
             _toastRoot.SetActive(false);

@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.23.1] - 2026-09-18
+
+### Changed
+- **Centralized Update Management**: Replaced standalone update checker with dependency on `com.wagenheimer.packagehub` (`UnityPackageHub`). Updates, changelogs, and package management are now handled centrally through the unified Wagenheimer Package Hub.
+
 ## [4.23.0] - 2026-09-06
 
 ### Added
