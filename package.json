@@ -28,6 +28,6 @@
     "com.unity.services.authentication": "2.7.0",
     "com.unity.services.cloudsave": "3.0.0",
     "com.unity.textmeshpro": "3.0.6",
-    "com.wagenheimer.packagehub": "https://github.com/wagenheimer/UnityPackageHub.git#v1.0.1"
+    "com.wagenheimer.packagehub": "https://github.com/wagenheimer/UnityPackageHub.git#v1.0.5"
   }
 }
