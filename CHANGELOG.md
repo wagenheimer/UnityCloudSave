@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.27.1] - 2026-09-26
+
+### Fixed
+- Remove extra brace in IntegrationGuideWindow.cs
+
 ## [4.27.0] - 2026-09-26
 
 ## [4.26.0] - 2026-09-26
