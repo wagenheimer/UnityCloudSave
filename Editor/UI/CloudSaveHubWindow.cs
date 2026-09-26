@@ -616,10 +616,10 @@ namespace Wagenheimer.CloudSave.Editor.UI
             var liveCard = CloudSaveUIStyle.CreateCard("Live Authentication & Cloud State");
 
             AddStateRow(liveCard, "Play Mode Active", Application.isPlaying ? "YES (Active)" : "NO (Edit Mode)");
-            AddStateRow(liveCard, "Cloud Save Initialized", CloudSaveController.IsInitialized ? "YES" : "NO");
+            AddStateRow(liveCard, "UGS Initialized & Ready", CloudAuth.IsReady ? "YES" : "NO");
             AddStateRow(liveCard, "Authenticated", CloudAuth.IsSignedIn ? $"YES ({CloudAuth.PlayerId})" : "NO");
-            AddStateRow(liveCard, "Sync Engine Status", CloudSync.CurrentStatus.ToString());
-            AddStateRow(liveCard, "Active Provider", CloudAuth.ActiveProvider.ToString());
+            AddStateRow(liveCard, "Sync Engine Status", CloudSync.LastResult.HasValue ? CloudSync.LastResult.Value.ToString() : "No sync yet");
+            AddStateRow(liveCard, "Active Provider", CloudAuth.Provider.ToString());
 
             scroll.Add(liveCard);
 
@@ -676,7 +676,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 try
                 {
                     var bytes = System.Text.Encoding.UTF8.GetBytes(_testValue);
-                    await CloudSaveController.SaveAsync(_testKey, bytes);
+                    await CloudSync.SaveAsync(bytes, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                     _testConsoleLog += $"\n✔ Saved {_testKey} successfully!";
                 }
                 catch (Exception ex)
@@ -697,9 +697,9 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 RenderActiveTab();
                 try
                 {
-                    var data = await CloudSaveController.LoadAsync<byte[]>(_testKey);
-                    var text = data != null ? System.Text.Encoding.UTF8.GetString(data) : "(empty)";
-                    _testConsoleLog += $"\n✔ Loaded: {text}";
+                    var (bytes, ts) = await CloudSync.LoadRawCloudDataAsync();
+                    var text = bytes != null ? System.Text.Encoding.UTF8.GetString(bytes) : "(empty)";
+                    _testConsoleLog += $"\n✔ Loaded: {text} (timestamp: {ts})";
                 }
                 catch (Exception ex)
                 {
@@ -713,12 +713,12 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 if (!Application.isPlaying) return;
                 try
                 {
-                    await CloudSaveController.DeleteAsync(_testKey);
+                    await CloudSync.DeleteCloudSaveAsync();
                     _testConsoleLog = $"✔ Deleted {_testKey} from cloud.";
                 }
                 catch (Exception ex)
                 {
-                    _testConsoleLog = $"✗ Delete failed: {ex.Message}";
+                    _testConsoleLog += $"\n✗ Delete failed: {ex.Message}";
                 }
                 RenderActiveTab();
             }));
@@ -728,12 +728,14 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 if (!Application.isPlaying) return;
                 try
                 {
-                    await CloudSaveController.SyncAsync();
-                    _testConsoleLog = "✔ Full sync triggered successfully.";
+                    await CloudSync.InitAndSyncAsync(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), b =>
+                    {
+                        _testConsoleLog = $"✔ Full sync resolved cloud data ({b?.Length ?? 0} bytes).";
+                    });
                 }
                 catch (Exception ex)
                 {
-                    _testConsoleLog = $"✗ Sync error: {ex.Message}";
+                    _testConsoleLog += $"✗ Sync error: {ex.Message}";
                 }
                 RenderActiveTab();
             }));
@@ -842,13 +844,13 @@ namespace Wagenheimer.CloudSave.Editor.UI
             var codeCard = CloudSaveUIStyle.CreateCard("Runtime API Code Snippets");
 
             AddCodeSnippet(codeCard, "Save Game Data to Cloud",
-                "byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);\nawait Wagenheimer.CloudSave.CloudSaveController.SaveAsync(\"SaveData\", bytes);");
+                "byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);\nawait Wagenheimer.CloudSave.CloudSync.SaveAsync(bytes, DateTimeOffset.UtcNow.ToUnixTimeSeconds());");
 
             AddCodeSnippet(codeCard, "Load Game Data from Cloud",
-                "byte[] bytes = await Wagenheimer.CloudSave.CloudSaveController.LoadAsync<byte[]>(\"SaveData\");\nif (bytes != null) string json = System.Text.Encoding.UTF8.GetString(bytes);");
+                "var (bytes, ts) = await Wagenheimer.CloudSave.CloudSync.LoadRawCloudDataAsync();\nif (bytes != null) string json = System.Text.Encoding.UTF8.GetString(bytes);");
 
             AddCodeSnippet(codeCard, "Listen to Sync Status Events",
-                "Wagenheimer.CloudSave.CloudSync.OnStatusChanged += status => {\n    Debug.Log($\"Cloud Sync Status: {status}\");\n};");
+                "Wagenheimer.CloudSave.CloudSync.OnSyncCompleted += result => {\n    Debug.Log($\"Cloud Sync Result: {result}\");\n};");
 
             scroll.Add(codeCard);
 
