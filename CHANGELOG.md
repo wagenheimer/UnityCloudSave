@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.28.1] - 2026-09-26
+
+### Fixed
+- Fixed compilation errors in `CloudSaveDebugOverlay.cs` by handling `CloudSyncResult` enum values and calling `CloudSync.DeleteCloudSaveAsync()`.
+
 ## [4.28.0] - 2026-09-26
 
 ### Added

@@ -490,10 +490,10 @@ namespace Wagenheimer.CloudSave.UI
             });
             btnRow2.Add(syncBtn);
 
-            var resetBtn = CreateActionButton("Reset Cloud Data", () =>
+            var resetBtn = CreateActionButton("Delete Cloud Data", () =>
             {
-                LogEvent("Triggered ResetCloudSaveAsync()...");
-                _ = CloudSync.ResetCloudSaveAsync();
+                LogEvent("Triggered DeleteCloudSaveAsync()...");
+                _ = CloudSync.DeleteCloudSaveAsync();
             }, isDangerous: true);
             btnRow2.Add(resetBtn);
             card.Add(btnRow2);
@@ -555,11 +555,12 @@ namespace Wagenheimer.CloudSave.UI
             var lastResult = CloudSync.LastResult;
             if (lastResult.HasValue)
             {
-                _syncStateLabel.text = lastResult.Value.Status.ToString();
-                _syncStateLabel.style.color = lastResult.Value.IsSuccess ? new Color(0.3f, 0.85f, 0.45f) : new Color(0.95f, 0.35f, 0.35f);
-                _lastSyncTimeLabel.text = lastResult.Value.Timestamp > 0
-                    ? DateTimeOffset.FromUnixTimeSeconds(lastResult.Value.Timestamp).ToLocalTime().ToString("HH:mm:ss")
-                    : "-";
+                _syncStateLabel.text = lastResult.Value.ToString();
+                bool isSuccess = lastResult.Value == CloudSyncResult.CloudApplied ||
+                                 lastResult.Value == CloudSyncResult.NoCloudSave ||
+                                 lastResult.Value == CloudSyncResult.LocalNewer;
+                _syncStateLabel.style.color = isSuccess ? new Color(0.3f, 0.85f, 0.45f) : new Color(0.95f, 0.35f, 0.35f);
+                _lastSyncTimeLabel.text = DateTime.Now.ToString("HH:mm:ss");
             }
             else
             {
@@ -577,7 +578,7 @@ namespace Wagenheimer.CloudSave.UI
 
         private void HandleSyncCompleted(CloudSyncResult result)
         {
-            LogEvent($"Sync completed: {result.Status} (Success={result.IsSuccess})");
+            LogEvent($"Sync completed: {result}");
             RefreshData();
         }
 
