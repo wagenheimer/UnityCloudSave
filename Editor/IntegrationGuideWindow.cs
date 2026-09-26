@@ -25,9 +25,6 @@ namespace Wagenheimer.CloudSave.Editor
         {
             Wagenheimer.CloudSave.Editor.UI.CloudSaveHubWindow.Open(Wagenheimer.CloudSave.Editor.UI.CloudSaveHubWindow.Tab.Guide);
         }
-            var w = GetWindow<IntegrationGuideWindow>("Cloud Save \u2014 Integration Guide");
-            w.minSize = new Vector2(480, 400);
-        }
 
         void OnGUI()
         {
