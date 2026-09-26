@@ -777,7 +777,12 @@ namespace Wagenheimer.CloudSave.Editor.UI
 
             prefToolbar.Add(CloudSaveUIStyle.CreateButton("Open Dedicated Test Window", "cs-btn-secondary", () =>
             {
-                EditorApplication.ExecuteMenuItem("Tools/Wagenheimer/Cloud Save/Open Test Window");
+                EditorApplication.ExecuteMenuItem("Tools/Wagenheimer/Cloud Save/Cloud Tester (Legacy)...");
+            }));
+
+            prefToolbar.Add(CloudSaveUIStyle.CreateButton("Add In-Game Debug Overlay to Scene", "cs-btn-primary", () =>
+            {
+                CloudSaveDebugOverlayEditor.AddDebugOverlayToScene();
             }));
 
             prefabCard.Add(prefToolbar);
