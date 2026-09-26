@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.28.0] - 2026-09-26
+
+### Added
+- Add runtime in-game CloudSaveDebugOverlay and scene menu helper
+
 ## [4.27.2] - 2026-09-26
 
 ### Fixed
