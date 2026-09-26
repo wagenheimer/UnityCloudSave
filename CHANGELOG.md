@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.27.2] - 2026-09-26
+
+### Fixed
+- Add missing .meta files for Editor/UI assets
+
 ## [4.27.1] - 2026-09-26
 
 ### Fixed
