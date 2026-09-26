@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.28.3] - 2026-09-26
+
+### Fixed
+- resolve CloudSaveHubWindow API and access level compilation errors
+
 ## [4.28.2] - 2026-09-26
 
 ## [4.28.1] - 2026-09-26
