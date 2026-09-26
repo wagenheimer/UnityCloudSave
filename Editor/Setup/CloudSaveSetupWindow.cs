@@ -14,11 +14,10 @@ namespace Wagenheimer.CloudSave.Editor.Setup
     /// </summary>
     public sealed class CloudSaveSetupWindow : EditorWindow
     {
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup && Verification", priority = 0)]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup && Verification...", priority = 10)]
         public static void Open()
         {
-            var w = GetWindow<CloudSaveSetupWindow>("Cloud Save Setup");
-            w.minSize = new Vector2(560, 520);
+            Wagenheimer.CloudSave.Editor.UI.CloudSaveHubWindow.Open(Wagenheimer.CloudSave.Editor.UI.CloudSaveHubWindow.Tab.Diagnostics);
         }
 
         enum Tab { Steps, Ui }

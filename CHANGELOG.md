@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.26.0] - 2026-09-26
+
+### Added
+- **UI Toolkit Dashboard**: Brand new modern dashboard (`Tools/Wagenheimer/Cloud Save/Dashboard...`) matching the Wagenheimer open-source ecosystem style with tabbed navigation:
+  - **Overview**: Live health status, project setup metrics, quick launcher actions.
+  - **Diagnostics & Checker**: Comprehensive system audit checking UGS dependencies, auth providers, project ID, conflict handling, and setup health.
+  - **Helper & Tools**: Interactive live data test tools, UI prefab generators (Cloud Save UI, Sync Status UI, Cloud Auth UI), and 1-click bootstrap code generator.
+  - **Guides & Snippets**: Ready-to-copy code snippets for initialization, save/load, conflict resolution, and provider linking.
+  - **About**: Ecosystem directory and author bio.
+- **Fail-safe Dual Styling**: Inline flex styling paired with `CloudSaveCommon.uss` ensuring robust rendering across all Unity Editor versions.
+
+### Changed
+- Reorganized menu priorities: `Dashboard...` is now the primary item (`priority = 0`), followed by setup, tools, audit, and prefab helpers.
+
 ## [4.25.0] - 2026-09-18
 
 ## [4.24.1] - 2026-09-18
