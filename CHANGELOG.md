@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.28.4] - 2026-10-06
+
+### Fixed
+- separate leading icons from button text
+
 ## [4.28.3] - 2026-09-26
 
 ### Fixed
