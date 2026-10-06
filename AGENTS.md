@@ -78,3 +78,6 @@ There are no CLI build/test commands — this is a Unity package. Test via the E
 - Do not convert static classes to instance classes — static API is intentional for the byte[] drop-in pattern.
 - Do not remove or modify `Runtime/Resources/` prefabs — they are the shipped defaults and also the output target for Editor auto-generation.
 - Do not add new package dependencies unless absolutely necessary — current deps are minimal.
+
+## UI Toolkit: leading-icon text
+Never put an emoji/symbol inline at the start of a `Button.text` (or a lone `Label`) — on Windows the fallback glyph draws wider than it measures and the following text overlaps the icon. Use `CloudSaveUIStyle.ApplyIconText(button, text)` (and `CreateIconLabel` for title labels) so the icon gets its own reserved box. This is the only supported way to show an icon before a label.
