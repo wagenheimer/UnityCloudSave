@@ -246,8 +246,9 @@ namespace Wagenheimer.CloudSave.UI
             _floatingBtn = new VisualElement();
             var st = _floatingBtn.style;
             st.position = Position.Absolute;
-            st.right = 16;
-            st.top = 100;
+            // Shared debug-button layout (no overlaps): bottom-left column 18/62/106 = IAP, Build, CloudSave.
+            st.left = 18;
+            st.bottom = 106;
             st.backgroundColor = new Color(0.08f, 0.28f, 0.45f, 0.92f);
             st.borderLeftColor = st.borderRightColor = st.borderTopColor = st.borderBottomColor = new Color(0.2f, 0.65f, 1f, 0.85f);
             st.borderLeftWidth = st.borderRightWidth = st.borderTopWidth = st.borderBottomWidth = 1.5f;
@@ -287,6 +288,7 @@ namespace Wagenheimer.CloudSave.UI
                 st.left = Mathf.Max(0, _floatingDragStartPos.x + delta.x);
                 st.top = Mathf.Max(0, _floatingDragStartPos.y + delta.y);
                 st.right = StyleKeyword.Auto;
+                st.bottom = StyleKeyword.Auto;
                 evt.StopPropagation();
             });
 
