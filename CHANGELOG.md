@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.28.5] - 2026-10-08
+
+### Fixed
+- remove unsupported :last-child selector from CloudSaveCommon.uss
+
 ## [4.28.4] - 2026-10-06
 
 ### Fixed
