@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.28.6] - 2026-10-08
+
+### Fixed
+- standard debug-button layout so floating buttons never overlap (bottom-right: Console, Rate, Social; bottom-left: IAP, Build, CloudSave)
+
 ## [4.28.5] - 2026-10-08
 
 ### Fixed
