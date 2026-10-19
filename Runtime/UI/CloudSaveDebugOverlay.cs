@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Unity.Services.Authentication;
+using Unity.Services.Core;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -9,12 +12,24 @@ namespace Wagenheimer.CloudSave.UI
     /// <summary>
     /// In-game runtime UI Toolkit debug overlay for inspecting and testing CloudSave.
     /// Provides real-time UGS authentication status, cloud sync inspection, conflict testing,
+    /// Unity Dashboard Identity Provider verification (Google Play Games, Apple Game Center),
     /// and interactive simulation triggers in Unity Editor and Development Builds.
     /// </summary>
     [AddComponentMenu("Wagenheimer/Cloud Save/Cloud Save Debug Overlay")]
     [DisallowMultipleComponent]
     public class CloudSaveDebugOverlay : MonoBehaviour
     {
+        #region Palette
+
+        private static readonly Color ColorAccentGreen  = new Color(0.18f, 0.75f, 0.38f);
+        private static readonly Color ColorAccentAmber  = new Color(0.95f, 0.70f, 0.18f);
+        private static readonly Color ColorAccentRed    = new Color(0.90f, 0.30f, 0.28f);
+        private static readonly Color ColorAccentCyan   = new Color(0.28f, 0.78f, 0.95f);
+        private static readonly Color ColorAccentOrange = new Color(0.98f, 0.55f, 0.18f);
+        private static readonly Color ColorTextMuted    = new Color(0.65f, 0.68f, 0.75f);
+
+        #endregion
+
         #region Settings
 
         [Header("Runtime Access")]
@@ -39,6 +54,38 @@ namespace Wagenheimer.CloudSave.UI
         [Range(0.75f, 3f)]
         public float desktopDefaultScale = 1f;
 
+        /// <summary>
+        /// Creates or returns the single runtime instance of CloudSaveDebugOverlay.
+        /// </summary>
+        public static CloudSaveDebugOverlay EnsureOverlay()
+        {
+            var existing = FindFirstObjectByType<CloudSaveDebugOverlay>();
+            if (existing != null) return existing;
+            var go = new GameObject("[CloudSaveDebugOverlay]");
+            return go.AddComponent<CloudSaveDebugOverlay>();
+        }
+
+        #endregion
+
+        #region Enums & Structs
+
+        public enum ProviderCheckState
+        {
+            NotChecked,
+            Checking,
+            ActiveOnDashboard,
+            MissingOnDashboard,
+            Error
+        }
+
+        private struct LogEntry
+        {
+            public string Time;
+            public string Category; // Sync, Auth, Error, General
+            public string Message;
+            public Color TextColor;
+        }
+
         #endregion
 
         #region Private Fields
@@ -59,6 +106,7 @@ namespace Wagenheimer.CloudSave.UI
         private VisualElement _window;
         private ScrollView _scrollView;
 
+        // Status & Details
         private Label _statusBanner;
         private Label _statusSubtext;
         private Label _playerIdLabel;
@@ -68,9 +116,22 @@ namespace Wagenheimer.CloudSave.UI
         private Label _lastSyncTimeLabel;
         private Label _slotLabel;
 
+        // Identity Providers Verification (Dashboard)
+        private ProviderCheckState _gpgsState = ProviderCheckState.NotChecked;
+        private string _gpgsDetail = "Not probed yet. Click 'Probe GPGS' to verify Unity Dashboard.";
+        private Label _gpgsStatusBadge;
+        private Label _gpgsDetailLabel;
+
+        private ProviderCheckState _gameCenterState = ProviderCheckState.NotChecked;
+        private string _gameCenterDetail = "Not probed yet. Click 'Probe Game Center' to verify Unity Dashboard.";
+        private Label _gameCenterStatusBadge;
+        private Label _gameCenterDetailLabel;
+
+        // Event log
         private VisualElement _eventLogContainer;
-        private readonly List<string> _eventHistory = new List<string>();
-        private const int MaxHistoryCount = 12;
+        private readonly List<LogEntry> _eventHistory = new List<LogEntry>();
+        private const int MaxHistoryCount = 60;
+        private string _logFilter = "All"; // All, Sync, Auth, Errors
 
         private bool _isOpen;
         private float _lastRefreshTime;
@@ -319,8 +380,8 @@ namespace Wagenheimer.CloudSave.UI
             st.position = Position.Absolute;
             st.right = 20;
             st.top = 40;
-            st.width = 460;
-            st.maxHeight = new StyleLength(new Length(86, LengthUnit.Percent));
+            st.width = 470;
+            st.maxHeight = new StyleLength(new Length(88, LengthUnit.Percent));
             st.backgroundColor = new Color(0.07f, 0.09f, 0.13f, 0.97f);
             st.borderLeftColor = st.borderRightColor = st.borderTopColor = st.borderBottomColor = new Color(0.18f, 0.26f, 0.38f);
             st.borderLeftWidth = st.borderRightWidth = st.borderTopWidth = st.borderBottomWidth = 1.5f;
@@ -337,6 +398,7 @@ namespace Wagenheimer.CloudSave.UI
 
             BuildStatusSection();
             BuildInfoSection();
+            BuildProvidersSection();
             BuildActionsSection();
             BuildLogSection();
 
@@ -453,6 +515,113 @@ namespace Wagenheimer.CloudSave.UI
             _scrollView.Add(card);
         }
 
+        private void BuildProvidersSection()
+        {
+            var card = CreateCard("Unity Dashboard Identity Providers (Verification)");
+
+            var descLbl = new Label("Probes the UGS Authentication backend to verify if Identity Providers are active in dashboard.unity3d.com:");
+            descLbl.style.fontSize = 9;
+            descLbl.style.color = ColorTextMuted;
+            descLbl.style.marginBottom = 6;
+            descLbl.style.whiteSpace = WhiteSpace.Normal;
+            card.Add(descLbl);
+
+            var callout = new VisualElement();
+            callout.style.backgroundColor = new Color(0.10f, 0.18f, 0.28f);
+            callout.style.borderLeftColor = ColorAccentCyan;
+            callout.style.borderLeftWidth = 3;
+            callout.style.borderTopLeftRadius = callout.style.borderTopRightRadius =
+                callout.style.borderBottomLeftRadius = callout.style.borderBottomRightRadius = 4;
+            callout.style.paddingLeft = callout.style.paddingRight = 8;
+            callout.style.paddingTop = callout.style.paddingBottom = 6;
+            callout.style.marginBottom = 10;
+
+            var calloutTitle = new Label("💡 Game Services vs Web Logins (Dashboard Tip):");
+            calloutTitle.style.fontSize = 9.5f;
+            calloutTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
+            calloutTitle.style.color = ColorAccentCyan;
+            calloutTitle.style.marginBottom = 2;
+            callout.Add(calloutTitle);
+
+            var calloutBody = new Label(
+                "• Jogos Mobile usam Google Play Games e Apple Game Center (login 100% automático, zero telas e linkado com Achievements).\n" +
+                "• No Unity Dashboard (Add Identity Provider):\n" +
+                "   -> Escolha 'Google Play Games' (NÃO use 'Google' web)\n" +
+                "   -> Escolha 'Apple Game Center' (NÃO use 'Sign in with Apple')");
+            calloutBody.style.fontSize = 8.5f;
+            calloutBody.style.color = new Color(0.85f, 0.90f, 0.95f);
+            calloutBody.style.whiteSpace = WhiteSpace.Normal;
+            callout.Add(calloutBody);
+            card.Add(callout);
+
+            // GPGS Row
+            var gpgsRow = new VisualElement();
+            gpgsRow.style.flexDirection = FlexDirection.Row;
+            gpgsRow.style.justifyContent = Justify.SpaceBetween;
+            gpgsRow.style.alignItems = Align.Center;
+            gpgsRow.style.marginBottom = 2;
+
+            var gpgsTitle = new Label("Google Play Games (Android - Game Service):");
+            gpgsTitle.style.fontSize = 10;
+            gpgsTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
+            gpgsTitle.style.color = Color.white;
+            gpgsRow.Add(gpgsTitle);
+
+            _gpgsStatusBadge = CreateBadge("NOT CHECKED", Color.gray);
+            gpgsRow.Add(_gpgsStatusBadge);
+            card.Add(gpgsRow);
+
+            _gpgsDetailLabel = new Label(_gpgsDetail);
+            _gpgsDetailLabel.style.fontSize = 9;
+            _gpgsDetailLabel.style.color = ColorTextMuted;
+            _gpgsDetailLabel.style.marginBottom = 8;
+            _gpgsDetailLabel.style.whiteSpace = WhiteSpace.Normal;
+            card.Add(_gpgsDetailLabel);
+
+            // Apple Game Center Row
+            var gcRow = new VisualElement();
+            gcRow.style.flexDirection = FlexDirection.Row;
+            gcRow.style.justifyContent = Justify.SpaceBetween;
+            gcRow.style.alignItems = Align.Center;
+            gcRow.style.marginBottom = 2;
+
+            var gcTitle = new Label("Apple Game Center (iOS - Game Service):");
+            gcTitle.style.fontSize = 10;
+            gcTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
+            gcTitle.style.color = Color.white;
+            gcRow.Add(gcTitle);
+
+            _gameCenterStatusBadge = CreateBadge("NOT CHECKED", Color.gray);
+            gcRow.Add(_gameCenterStatusBadge);
+            card.Add(gcRow);
+
+            _gameCenterDetailLabel = new Label(_gameCenterDetail);
+            _gameCenterDetailLabel.style.fontSize = 9;
+            _gameCenterDetailLabel.style.color = ColorTextMuted;
+            _gameCenterDetailLabel.style.marginBottom = 10;
+            _gameCenterDetailLabel.style.whiteSpace = WhiteSpace.Normal;
+            card.Add(_gameCenterDetailLabel);
+
+            // Action Buttons
+            var btnRow = new VisualElement();
+            btnRow.style.flexDirection = FlexDirection.Row;
+            btnRow.style.marginBottom = 6;
+
+            btnRow.Add(CreateActionButton("Probe GPGS", () => _ = ProbeGooglePlayGamesAsync()));
+            btnRow.Add(CreateActionButton("Probe Game Center", () => _ = ProbeAppleGameCenterAsync()));
+            btnRow.Add(CreateActionButton("Probe All", () => _ = ProbeAllProvidersAsync()));
+            card.Add(btnRow);
+
+            var copyUrlBtn = CreateActionButton("Copy Dashboard URL (cloud.unity.com)", () =>
+            {
+                GUIUtility.systemCopyBuffer = "https://cloud.unity.com/";
+                LogEvent("Dashboard URL copied to clipboard: https://cloud.unity.com/", "Auth", ColorAccentCyan);
+            });
+            card.Add(copyUrlBtn);
+
+            _scrollView.Add(card);
+        }
+
         private void BuildActionsSection()
         {
             var card = CreateCard("Interactive Test Actions");
@@ -463,14 +632,14 @@ namespace Wagenheimer.CloudSave.UI
 
             var signInBtn = CreateActionButton("Sign In Anon", () =>
             {
-                LogEvent("Triggered EnsureSignedInAsync()...");
+                LogEvent("Triggered EnsureSignedInAsync()...", "Auth");
                 _ = CloudAuth.EnsureSignedInAsync();
             });
             btnRow1.Add(signInBtn);
 
             var signOutBtn = CreateActionButton("Sign Out", () =>
             {
-                LogEvent("Triggered CloudAuth.SignOut()");
+                LogEvent("Triggered CloudAuth.SignOut()", "Auth", ColorAccentAmber);
                 CloudAuth.SignOut();
                 RefreshData();
             });
@@ -483,18 +652,18 @@ namespace Wagenheimer.CloudSave.UI
 
             var syncBtn = CreateActionButton("Force Sync Now", () =>
             {
-                LogEvent("Triggered InitAndSyncAsync()...");
+                LogEvent("Triggered InitAndSyncAsync()...", "Sync");
                 var dummyBytes = System.Text.Encoding.UTF8.GetBytes("{\"test\":true,\"time\":\"" + DateTime.UtcNow + "\"}");
                 _ = CloudSync.InitAndSyncAsync(DateTimeOffset.UtcNow.ToUnixTimeSeconds(), bytes =>
                 {
-                    LogEvent($"Cloud save downloaded ({bytes.Length} bytes).");
+                    LogEvent($"Cloud save downloaded ({bytes.Length} bytes).", "Sync", ColorAccentGreen);
                 });
             });
             btnRow2.Add(syncBtn);
 
             var resetBtn = CreateActionButton("Delete Cloud Data", () =>
             {
-                LogEvent("Triggered DeleteCloudSaveAsync()...");
+                LogEvent("Triggered DeleteCloudSaveAsync()...", "Sync", ColorAccentRed);
                 _ = CloudSync.DeleteCloudSaveAsync();
             }, isDangerous: true);
             btnRow2.Add(resetBtn);
@@ -505,7 +674,28 @@ namespace Wagenheimer.CloudSave.UI
 
         private void BuildLogSection()
         {
-            var card = CreateCard("Live Event Log");
+            var card = CreateCard("Live Event Log & Console");
+
+            var filterRow = new VisualElement();
+            filterRow.style.flexDirection = FlexDirection.Row;
+            filterRow.style.alignItems = Align.Center;
+            filterRow.style.marginBottom = 6;
+
+            filterRow.Add(CreateFilterPill("All", () => SetLogFilter("All"), _logFilter == "All"));
+            filterRow.Add(CreateFilterPill("Sync", () => SetLogFilter("Sync"), _logFilter == "Sync"));
+            filterRow.Add(CreateFilterPill("Auth", () => SetLogFilter("Auth"), _logFilter == "Auth"));
+            filterRow.Add(CreateFilterPill("Errors", () => SetLogFilter("Errors"), _logFilter == "Errors"));
+
+            var clearBtn = CreateMiniButton("Clear", () =>
+            {
+                _eventHistory.Clear();
+                RefreshLogUI();
+            });
+            clearBtn.style.marginLeft = StyleKeyword.Auto;
+            filterRow.Add(clearBtn);
+
+            card.Add(filterRow);
+
             _eventLogContainer = new VisualElement();
             _eventLogContainer.style.backgroundColor = new Color(0.04f, 0.06f, 0.09f);
             _eventLogContainer.style.paddingLeft = _eventLogContainer.style.paddingRight = 8;
@@ -514,6 +704,170 @@ namespace Wagenheimer.CloudSave.UI
                 _eventLogContainer.style.borderBottomLeftRadius = _eventLogContainer.style.borderBottomRightRadius = 4;
             card.Add(_eventLogContainer);
             _scrollView.Add(card);
+        }
+
+        #endregion
+
+        #region Provider Probes & Verification
+
+        public async Task ProbeGooglePlayGamesAsync()
+        {
+            _gpgsState = ProviderCheckState.Checking;
+            UpdateProviderBadges();
+            LogEvent("Probing Google Play Games on Unity Dashboard...", "Auth");
+
+            try
+            {
+                if (UnityServices.State != ServicesInitializationState.Initialized)
+                    await UnityServices.InitializeAsync();
+                if (!AuthenticationService.Instance.IsSignedIn)
+                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
+
+                await AuthenticationService.Instance.LinkWithGooglePlayGamesAsync("probe_dashboard_check");
+                _gpgsState = ProviderCheckState.ActiveOnDashboard;
+                _gpgsDetail = "ACTIVE: Provider accepted by Unity Authentication on Dashboard.";
+                LogEvent("GPGS Provider is ACTIVE on Dashboard!", "Auth", ColorAccentGreen);
+            }
+            catch (AuthenticationException ex) when (ex.ErrorCode == AuthenticationErrorCodes.InvalidProvider)
+            {
+                _gpgsState = ProviderCheckState.MissingOnDashboard;
+                _gpgsDetail = "MISSING: Error 10008 (InvalidProvider). Configure Google Play Games in Unity Dashboard -> Authentication -> Identity Providers.";
+                LogEvent($"GPGS NOT configured on Dashboard (Error 10008): {ex.Message}", "Error", ColorAccentRed);
+            }
+            catch (AuthenticationException ex)
+            {
+                _gpgsState = ProviderCheckState.ActiveOnDashboard;
+                _gpgsDetail = $"ACTIVE on Dashboard. (Token rejected as expected: {ex.Message})";
+                LogEvent($"GPGS Provider is ACTIVE on Dashboard! (Server reached Google)", "Auth", ColorAccentGreen);
+            }
+            catch (Exception ex)
+            {
+                _gpgsState = ProviderCheckState.Error;
+                _gpgsDetail = $"Error during probe: {ex.Message}";
+                LogEvent($"GPGS probe error: {ex.Message}", "Error", ColorAccentRed);
+            }
+            finally
+            {
+                UpdateProviderBadges();
+            }
+        }
+
+        public async Task ProbeAppleGameCenterAsync()
+        {
+            _gameCenterState = ProviderCheckState.Checking;
+            UpdateProviderBadges();
+            LogEvent("Probing Apple Game Center on Unity Dashboard...", "Auth");
+
+            try
+            {
+                if (UnityServices.State != ServicesInitializationState.Initialized)
+                    await UnityServices.InitializeAsync();
+                if (!AuthenticationService.Instance.IsSignedIn)
+                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
+
+                await AuthenticationService.Instance.LinkWithAppleGameCenterAsync(
+                    "probe_sig", "probe_team", "https://apple.com/key", "probe_salt", 1234567890);
+                _gameCenterState = ProviderCheckState.ActiveOnDashboard;
+                _gameCenterDetail = "ACTIVE: Provider accepted by Unity Authentication on Dashboard.";
+                LogEvent("Game Center Provider is ACTIVE on Dashboard!", "Auth", ColorAccentGreen);
+            }
+            catch (AuthenticationException ex) when (ex.ErrorCode == AuthenticationErrorCodes.InvalidProvider)
+            {
+                _gameCenterState = ProviderCheckState.MissingOnDashboard;
+                _gameCenterDetail = "MISSING: Error 10008 (InvalidProvider). Configure Apple Game Center in Unity Dashboard -> Authentication -> Identity Providers.";
+                LogEvent($"Game Center NOT configured on Dashboard (Error 10008): {ex.Message}", "Error", ColorAccentRed);
+            }
+            catch (AuthenticationException ex)
+            {
+                _gameCenterState = ProviderCheckState.ActiveOnDashboard;
+                _gameCenterDetail = $"ACTIVE on Dashboard. (Signature rejected as expected: {ex.Message})";
+                LogEvent($"Game Center Provider is ACTIVE on Dashboard! (Server checked signature)", "Auth", ColorAccentGreen);
+            }
+            catch (Exception ex)
+            {
+                _gameCenterState = ProviderCheckState.Error;
+                _gameCenterDetail = $"Error during probe: {ex.Message}";
+                LogEvent($"Game Center probe error: {ex.Message}", "Error", ColorAccentRed);
+            }
+            finally
+            {
+                UpdateProviderBadges();
+            }
+        }
+
+        public async Task ProbeAllProvidersAsync()
+        {
+            await ProbeGooglePlayGamesAsync();
+            await ProbeAppleGameCenterAsync();
+        }
+
+        private void UpdateProviderBadges()
+        {
+            if (_gpgsStatusBadge != null)
+            {
+                switch (_gpgsState)
+                {
+                    case ProviderCheckState.NotChecked:
+                        ApplyBadge(_gpgsStatusBadge, "NOT CHECKED", Color.gray);
+                        break;
+                    case ProviderCheckState.Checking:
+                        ApplyBadge(_gpgsStatusBadge, "CHECKING...", ColorAccentAmber);
+                        break;
+                    case ProviderCheckState.ActiveOnDashboard:
+                        ApplyBadge(_gpgsStatusBadge, "ACTIVE ON DASHBOARD", ColorAccentGreen);
+                        break;
+                    case ProviderCheckState.MissingOnDashboard:
+                        ApplyBadge(_gpgsStatusBadge, "MISSING (ERR 10008)", ColorAccentRed);
+                        break;
+                    case ProviderCheckState.Error:
+                        ApplyBadge(_gpgsStatusBadge, "ERROR", ColorAccentRed);
+                        break;
+                }
+            }
+            if (_gpgsDetailLabel != null) _gpgsDetailLabel.text = _gpgsDetail;
+
+            if (_gameCenterStatusBadge != null)
+            {
+                switch (_gameCenterState)
+                {
+                    case ProviderCheckState.NotChecked:
+                        ApplyBadge(_gameCenterStatusBadge, "NOT CHECKED", Color.gray);
+                        break;
+                    case ProviderCheckState.Checking:
+                        ApplyBadge(_gameCenterStatusBadge, "CHECKING...", ColorAccentAmber);
+                        break;
+                    case ProviderCheckState.ActiveOnDashboard:
+                        ApplyBadge(_gameCenterStatusBadge, "ACTIVE ON DASHBOARD", ColorAccentGreen);
+                        break;
+                    case ProviderCheckState.MissingOnDashboard:
+                        ApplyBadge(_gameCenterStatusBadge, "MISSING (ERR 10008)", ColorAccentRed);
+                        break;
+                    case ProviderCheckState.Error:
+                        ApplyBadge(_gameCenterStatusBadge, "ERROR", ColorAccentRed);
+                        break;
+                }
+            }
+            if (_gameCenterDetailLabel != null) _gameCenterDetailLabel.text = _gameCenterDetail;
+        }
+
+        private Label CreateBadge(string text, Color bg)
+        {
+            var badge = new Label(text);
+            badge.style.fontSize = 9;
+            badge.style.unityFontStyleAndWeight = FontStyle.Bold;
+            badge.style.color = Color.white;
+            badge.style.backgroundColor = bg;
+            badge.style.paddingLeft = badge.style.paddingRight = 6;
+            badge.style.paddingTop = badge.style.paddingBottom = 2;
+            badge.style.borderTopLeftRadius = badge.style.borderTopRightRadius =
+                badge.style.borderBottomLeftRadius = badge.style.borderBottomRightRadius = 3;
+            return badge;
+        }
+
+        private void ApplyBadge(Label badge, string text, Color bg)
+        {
+            badge.text = text;
+            badge.style.backgroundColor = bg;
         }
 
         #endregion
@@ -533,19 +887,19 @@ namespace Wagenheimer.CloudSave.UI
             if (!isReady)
             {
                 _statusBanner.text = "UGS NOT INITIALIZED";
-                _statusBanner.style.color = new Color(0.95f, 0.35f, 0.35f);
+                _statusBanner.style.color = ColorAccentRed;
                 _statusSubtext.text = "Unity Services is initializing or offline.";
             }
             else if (!isSignedIn)
             {
                 _statusBanner.text = "NOT SIGNED IN";
-                _statusBanner.style.color = new Color(1.0f, 0.7f, 0.2f);
+                _statusBanner.style.color = ColorAccentAmber;
                 _statusSubtext.text = "Unity Authentication ready. Waiting for player sign-in.";
             }
             else
             {
                 _statusBanner.text = "READY & SIGNED IN";
-                _statusBanner.style.color = new Color(0.3f, 0.85f, 0.45f);
+                _statusBanner.style.color = ColorAccentGreen;
                 _statusSubtext.text = $"Authenticated via {provider} ({(isAnon ? "Anonymous" : "Linked")}).";
             }
 
@@ -561,7 +915,7 @@ namespace Wagenheimer.CloudSave.UI
                 bool isSuccess = lastResult.Value == CloudSyncResult.CloudApplied ||
                                  lastResult.Value == CloudSyncResult.NoCloudSave ||
                                  lastResult.Value == CloudSyncResult.LocalNewer;
-                _syncStateLabel.style.color = isSuccess ? new Color(0.3f, 0.85f, 0.45f) : new Color(0.95f, 0.35f, 0.35f);
+                _syncStateLabel.style.color = isSuccess ? ColorAccentGreen : ColorAccentRed;
                 _lastSyncTimeLabel.text = DateTime.Now.ToString("HH:mm:ss");
             }
             else
@@ -574,51 +928,93 @@ namespace Wagenheimer.CloudSave.UI
 
         private void HandleSyncStarted()
         {
-            LogEvent("Cloud Sync started...");
+            LogEvent("Cloud Sync started...", "Sync");
             RefreshData();
         }
 
         private void HandleSyncCompleted(CloudSyncResult result)
         {
-            LogEvent($"Sync completed: {result}");
+            var color = (result == CloudSyncResult.CloudApplied || result == CloudSyncResult.NoCloudSave || result == CloudSyncResult.LocalNewer)
+                ? ColorAccentGreen
+                : ColorAccentRed;
+            LogEvent($"Sync completed: {result}", "Sync", color);
             RefreshData();
         }
 
         private void HandleSaveReset()
         {
-            LogEvent("Save data reset triggered.");
+            LogEvent("Save data reset triggered.", "Sync", ColorAccentOrange);
             RefreshData();
         }
 
         private void HandleAuthLinked(CloudAuthProvider provider)
         {
-            LogEvent($"Account linked to: {provider}");
+            LogEvent($"Account linked to: {provider}", "Auth", ColorAccentGreen);
             RefreshData();
         }
 
         private void HandleAccountSwitched(CloudAuthProvider provider)
         {
-            LogEvent($"Account switched to existing: {provider}");
+            LogEvent($"Account switched to existing: {provider}", "Auth", ColorAccentAmber);
             RefreshData();
         }
 
-        private void LogEvent(string msg)
+        private void LogEvent(string msg, string category = "General", Color? color = null)
         {
-            var line = $"[{DateTime.Now:HH:mm:ss}] {msg}";
-            _eventHistory.Insert(0, line);
-            if (_eventHistory.Count > MaxHistoryCount) _eventHistory.RemoveAt(_eventHistory.Count - 1);
+            Color c = color ?? (category == "Error" ? ColorAccentRed :
+                               category == "Sync" ? ColorAccentCyan :
+                               category == "Auth" ? ColorAccentGreen :
+                               new Color(0.75f, 0.82f, 0.92f));
 
-            if (_eventLogContainer != null)
+            _eventHistory.Insert(0, new LogEntry
             {
-                _eventLogContainer.Clear();
-                foreach (var ev in _eventHistory)
-                {
-                    var lbl = new Label(ev);
-                    lbl.style.fontSize = 10;
-                    lbl.style.color = new Color(0.7f, 0.8f, 0.9f);
-                    lbl.style.marginBottom = 2;
-                    _eventLogContainer.Add(lbl);
-                }
+                Time = DateTime.Now.ToString("HH:mm:ss"),
+                Category = category,
+                Message = msg,
+                TextColor = c
+            });
+
+            if (_eventHistory.Count > MaxHistoryCount)
+                _eventHistory.RemoveAt(_eventHistory.Count - 1);
+
+            RefreshLogUI();
+        }
+
+        private void SetLogFilter(string filter)
+        {
+            _logFilter = filter;
+            RefreshLogUI();
+        }
+
+        private void RefreshLogUI()
+        {
+            if (_eventLogContainer == null) return;
+            _eventLogContainer.Clear();
+
+            var visibleEntries = _eventHistory.Where(e =>
+                _logFilter == "All" ||
+                (_logFilter == "Errors" && e.Category == "Error") ||
+                (_logFilter == "Sync" && e.Category == "Sync") ||
+                (_logFilter == "Auth" && e.Category == "Auth")
+            ).ToList();
+
+            if (visibleEntries.Count == 0)
+            {
+                var emptyLbl = new Label("No log events for filter: " + _logFilter);
+                emptyLbl.style.fontSize = 9;
+                emptyLbl.style.color = ColorTextMuted;
+                _eventLogContainer.Add(emptyLbl);
+                return;
+            }
+
+            foreach (var ev in visibleEntries)
+            {
+                var lbl = new Label($"[{ev.Time}] [{ev.Category}] {ev.Message}");
+                lbl.style.fontSize = 9;
+                lbl.style.color = ev.TextColor;
+                lbl.style.marginBottom = 2;
+                lbl.style.whiteSpace = WhiteSpace.Normal;
+                _eventLogContainer.Add(lbl);
             }
         }
 
@@ -713,6 +1109,32 @@ namespace Wagenheimer.CloudSave.UI
             st.paddingLeft = st.paddingRight = 6;
             st.paddingTop = st.paddingBottom = 3;
             st.marginLeft = 3;
+            return btn;
+        }
+
+        private VisualElement CreateFilterPill(string label, Action onClick, bool active)
+        {
+            var btn = new Button(onClick) { text = label };
+            var st = btn.style;
+            st.fontSize = 9;
+            st.paddingLeft = st.paddingRight = 8;
+            st.paddingTop = st.paddingBottom = 3;
+            st.marginRight = 4;
+            st.borderLeftWidth = st.borderRightWidth = st.borderTopWidth = st.borderBottomWidth = 1;
+            st.borderTopLeftRadius = st.borderTopRightRadius = st.borderBottomLeftRadius = st.borderBottomRightRadius = 10;
+            if (active)
+            {
+                st.backgroundColor = ColorAccentCyan;
+                st.color = Color.black;
+                st.unityFontStyleAndWeight = FontStyle.Bold;
+                st.borderLeftColor = st.borderRightColor = st.borderTopColor = st.borderBottomColor = ColorAccentCyan;
+            }
+            else
+            {
+                st.backgroundColor = new Color(0.12f, 0.16f, 0.22f);
+                st.color = ColorTextMuted;
+                st.borderLeftColor = st.borderRightColor = st.borderTopColor = st.borderBottomColor = new Color(0.2f, 0.25f, 0.35f);
+            }
             return btn;
         }
 

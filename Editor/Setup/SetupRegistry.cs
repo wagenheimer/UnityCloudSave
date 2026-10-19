@@ -101,7 +101,7 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                     "Optional: CloudAuthUI.Create() — account link modal. Or register your own form."),
 
                 [Ids.CodeAuthUpgrade] = new CodePresenceDetector(
-                    @"Link(GooglePlayGames|AppleGameCenter|Apple|Facebook|Google)Async", "code.authupgrade",
+                    @"Link(GooglePlayGames|AppleGameCenter|Apple|Facebook|Google)Async|RequestPlatformLink|ServerAuthCodeProvider|LinkProvider", "code.authupgrade",
                     "Account-linking code found", "For cross-device saves, link the anonymous account: CloudAuth.Link*Async(...)."),
                 [Ids.ProviderFacebook] = new CodePresenceDetector(
                     @"FB\.Init|LinkFacebookAsync|FacebookSDK", "provider.facebook",
@@ -130,6 +130,8 @@ namespace Wagenheimer.CloudSave.Editor.Setup
             _cases = new Dictionary<string, Func<ValidationCase>>
             {
                 [Ids.AnonymousVerification] = () => new AnonymousSignInCase(),
+                [Ids.ProviderAndroid] = () => new GooglePlayGamesProviderCase(),
+                [Ids.ProviderApple] = () => new AppleGameCenterProviderCase(),
             };
 
             _manualItems = new Dictionary<string, string[]>();
@@ -301,22 +303,32 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                   "Green when Facebook code is present."),
                 fingerprintInputs: new[] { "provider.facebook" }),
 
-            new StepDefinition(Ids.ProviderAndroid, "Google Play Games (Android)", StepCategory.Providers, Obligation.Optional,
-                C("GPGS plugin + server-auth-code flow feeding CloudAuth.LinkGooglePlayGamesAsync.",
-                  "Optional cross-device provider on Android.",
-                  "Install com.google.play.games, wire PlayGamesPlatform. Full Play Console setup lands in Phase 3.",
-                  "Detects the plugin package and PlayGamesPlatform usage.",
-                  "Green when the plugin or its code is present.",
+            new StepDefinition(Ids.ProviderAndroid, "Google Play Games (Android - Game Service)", StepCategory.Providers, Obligation.Optional,
+                C("Gamer profile & cross-device cloud save on Android. Automatic & zero friction (no email prompt). Synced with Achievements.",
+                  "Cross-device saves on Android. In the Unity Dashboard dropdown, pick 'Google Play Games' (DO NOT pick 'Google' web OAuth).",
+                  "1. Install com.google.play.games and wire PlayGamesPlatform.\n" +
+                  "2. Go to dashboard.unity3d.com -> Player Authentication -> Identity Providers -> Add Identity Provider.\n" +
+                  "3. Choose 'Google Play Games' (NOT 'Google') and enter the Web Client ID & Client Secret from Google Cloud Console.\n" +
+                  "4. Click 'Run Validation Test' to probe if the Unity Dashboard has Google Play Games active.",
+                  "Probe query against Unity Authentication backend.",
+                  "Green/Passed when Google Play Games is accepted by Unity Authentication on Dashboard.",
+                  new StepLink("Unity Dashboard", "https://cloud.unity.com/"),
                   new StepLink("GPGS plugin", "https://github.com/playgameservices/play-games-plugin-for-unity")),
-                fingerprintInputs: new[] { "gpgs.pkg", "gpgs.code" }),
+                fingerprintInputs: new[] { "gpgs.pkg", "gpgs.code" },
+                hasRuntimeValidator: true),
 
-            new StepDefinition(Ids.ProviderApple, "Sign in with Apple / Game Center (iOS)", StepCategory.Providers, Obligation.Optional,
-                C("Apple auth feeding CloudAuth.LinkAppleAsync / LinkAppleGameCenterAsync.",
-                  "Optional cross-device provider on iOS.",
-                  "Apple sign-in plugin or Apple.GameKit. Full Apple Developer setup lands in Phase 3.",
-                  "Grep proof for Apple.GameKit / GKLocalPlayer / LinkApple*Async.",
-                  "Green when Apple code is present."),
-                fingerprintInputs: new[] { "provider.ios" }),
+            new StepDefinition(Ids.ProviderApple, "Apple Game Center (iOS - Game Service)", StepCategory.Providers, Obligation.Optional,
+                C("Gamer profile & cross-device cloud save on iOS. Automatic, seamless banner. Synced with Game Center Achievements.",
+                  "Cross-device saves on iOS. In the Unity Dashboard dropdown, pick 'Apple Game Center' (DO NOT pick 'Sign in with Apple').",
+                  "1. Apple sign-in plugin or Apple.GameKit.\n" +
+                  "2. Go to dashboard.unity3d.com -> Player Authentication -> Identity Providers -> Add Identity Provider.\n" +
+                  "3. Choose 'Apple Game Center' (NOT 'Sign in with Apple') and enter your iOS Bundle ID and Apple Team ID (10 chars).\n" +
+                  "4. Click 'Run Validation Test' to probe if the Unity Dashboard has Apple Game Center active.",
+                  "Probe query against Unity Authentication backend.",
+                  "Green/Passed when Apple Game Center is accepted by Unity Authentication on Dashboard.",
+                  new StepLink("Unity Dashboard", "https://cloud.unity.com/")),
+                fingerprintInputs: new[] { "provider.ios" },
+                hasRuntimeValidator: true),
 
             // ── Store Compliance ──────────────────────────────────────────
             new StepDefinition(Ids.ComplianceDeletion, "In-app account deletion", StepCategory.StoreCompliance, Obligation.Recommended,
@@ -325,7 +337,7 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                   "Add a 'Delete account' action that calls await CloudAuth.DeleteAccountAsync().",
                   "Grep proof for DeleteAccountAsync.",
                   "Green when the call is present."),
-                dependsOn: new[] { Dep(Ids.CodeAuthUpgrade) },
+                dependsOn: new[] { Dep(Ids.AnonymousAuth) },
                 fingerprintInputs: new[] { "compliance.deletion" }),
 
             new StepDefinition(Ids.ComplianceDeletionUi, "Account-deletion confirmation UI", StepCategory.StoreCompliance, Obligation.Recommended,

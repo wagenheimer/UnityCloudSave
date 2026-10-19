@@ -41,6 +41,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
         private CloudSaveSetupState _state;
         private SetupSnapshot _snapshot;
         private readonly HashSet<string> _expandedSteps = new();
+        private Vector2 _diagnosticsScrollOffset = Vector2.zero;
         private bool _isBusy;
 
         // Tester state
@@ -181,6 +182,11 @@ namespace Wagenheimer.CloudSave.Editor.UI
         private void RenderActiveTab()
         {
             if (_contentContainer == null) return;
+            var existingScroll = _contentContainer.Q<ScrollView>();
+            if (existingScroll != null && _currentTab == Tab.Diagnostics)
+            {
+                _diagnosticsScrollOffset = existingScroll.scrollOffset;
+            }
             _contentContainer.Clear();
 
             if (_tabButtons != null)
@@ -225,6 +231,10 @@ namespace Wagenheimer.CloudSave.Editor.UI
         {
             var scroll = new ScrollView();
             scroll.style.flexGrow = 1;
+            if (_diagnosticsScrollOffset != Vector2.zero)
+            {
+                scroll.schedule.Execute(() => scroll.scrollOffset = _diagnosticsScrollOffset);
+            }
 
             if (_snapshot == null)
             {
@@ -307,9 +317,30 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 RenderActiveTab();
             }));
 
+            toolbar.Add(CloudSaveUIStyle.CreateButton("Add Debug Overlay to Scene", "cs-btn-secondary", () =>
+            {
+                CloudSaveDebugOverlayEditor.AddDebugOverlayToScene();
+            }));
+
             toolbar.Add(CloudSaveUIStyle.CreateButton("Copy Diagnostic Report / AI Prompt", "cs-btn-secondary", () =>
             {
                 CopyDiagnosticPrompt();
+            }));
+
+            toolbar.Add(CloudSaveUIStyle.CreateButton("▾ Expand All", "cs-btn-secondary", () =>
+            {
+                if (_snapshot != null)
+                {
+                    foreach (var s in _snapshot.Steps)
+                        _expandedSteps.Add(s.Definition.Id);
+                    RenderActiveTab();
+                }
+            }));
+
+            toolbar.Add(CloudSaveUIStyle.CreateButton("▸ Collapse All", "cs-btn-secondary", () =>
+            {
+                _expandedSteps.Clear();
+                RenderActiveTab();
             }));
 
             toolCard.Add(toolbar);
@@ -324,6 +355,40 @@ namespace Wagenheimer.CloudSave.Editor.UI
                              .OrderBy(g => (int)g.Key))
                 {
                     var groupCard = CloudSaveUIStyle.CreateCard(group.Key.ToString() + " Verification");
+
+                    if (group.Key == StepCategory.Providers)
+                    {
+                        var guideBox = new VisualElement();
+                        guideBox.style.backgroundColor = new StyleColor(new Color(0.08f, 0.22f, 0.35f, 0.7f));
+                        guideBox.style.borderLeftColor = new StyleColor(CloudSaveUIStyle.ColAccent);
+                        guideBox.style.borderLeftWidth = 3.5f;
+                        guideBox.style.SetRadius(4);
+                        guideBox.style.paddingLeft = 10;
+                        guideBox.style.paddingRight = 10;
+                        guideBox.style.paddingTop = 8;
+                        guideBox.style.paddingBottom = 8;
+                        guideBox.style.marginBottom = 10;
+
+                        var guideTitle = new Label("💡 Game Services vs Web Logins (Unity Dashboard Setup)");
+                        guideTitle.style.fontSize = 11.5f;
+                        guideTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
+                        guideTitle.style.color = new StyleColor(CloudSaveUIStyle.ColAccent);
+                        guideTitle.style.marginBottom = 4;
+                        guideBox.Add(guideTitle);
+
+                        var guideText = new Label(
+                            "• Para jogos mobile, use os Game Services nativos: Google Play Games (Android) e Apple Game Center (iOS).\n" +
+                            "• Vantagens: Login 100% silencioso/automático, sem telas de e-mail, e total sincronia com os Achievements.\n" +
+                            "• ⚠️ No Unity Dashboard (Add Identity Provider):\n" +
+                            "   - Escolha 'Google Play Games' (NÃO use 'Google' web).\n" +
+                            "   - Escolha 'Apple Game Center' (NÃO use 'Sign in with Apple').");
+                        guideText.style.fontSize = 10.5f;
+                        guideText.style.color = new StyleColor(CloudSaveUIStyle.ColTextWhite);
+                        guideText.style.whiteSpace = WhiteSpace.Normal;
+                        guideBox.Add(guideText);
+
+                        groupCard.Add(guideBox);
+                    }
 
                     foreach (var eval in group)
                     {
@@ -368,8 +433,14 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 _ => ("NOT CONFIGURED", "cs-badge-neutral")
             };
 
-            card.style.borderLeftColor = new StyleColor(eval.State == StepState.Validated ? CloudSaveUIStyle.ColGreen :
-                (eval.State == StepState.Failed ? CloudSaveUIStyle.ColRed : CloudSaveUIStyle.ColAmber));
+            var stateColor = eval.State switch
+            {
+                StepState.Validated => CloudSaveUIStyle.ColGreen,
+                StepState.Failed => CloudSaveUIStyle.ColRed,
+                _ => CloudSaveUIStyle.ColAmber
+            };
+
+            card.style.borderLeftColor = new StyleColor(stateColor);
 
             // Header Row
             var header = new VisualElement();
@@ -377,15 +448,18 @@ namespace Wagenheimer.CloudSave.Editor.UI
             header.style.flexDirection = FlexDirection.Row;
             header.style.alignItems = Align.Center;
             header.style.justifyContent = Justify.SpaceBetween;
+            header.style.paddingTop = 2;
+            header.style.paddingBottom = 2;
 
             var titleRow = new VisualElement();
             titleRow.style.flexDirection = FlexDirection.Row;
             titleRow.style.alignItems = Align.Center;
 
             var toggleIcon = new Label(isExpanded ? "▾" : "▸");
-            toggleIcon.style.fontSize = 12;
+            toggleIcon.style.fontSize = 13;
             toggleIcon.style.color = new StyleColor(CloudSaveUIStyle.ColTextMuted);
             toggleIcon.style.marginRight = 6;
+            toggleIcon.style.unityFontStyleAndWeight = FontStyle.Bold;
             titleRow.Add(toggleIcon);
 
             var titleLbl = new Label(eval.Definition.Title);
@@ -405,98 +479,126 @@ namespace Wagenheimer.CloudSave.Editor.UI
             var badge = CloudSaveUIStyle.CreateBadge(badgeText, badgeClass);
             header.Add(badge);
 
-            header.RegisterCallback<ClickEvent>(_ =>
-            {
-                if (isExpanded) _expandedSteps.Remove(eval.Definition.Id);
-                else _expandedSteps.Add(eval.Definition.Id);
-                RenderActiveTab();
-            });
-
             card.Add(header);
 
-            // Expanded Body
-            if (isExpanded)
+            // Body
+            var body = new VisualElement();
+            body.AddToClassList("cs-step-details");
+            body.style.marginTop = 8;
+            body.style.paddingTop = 8;
+            body.style.borderTopWidth = 1;
+            body.style.borderTopColor = new StyleColor(new Color(1f, 1f, 1f, 0.08f));
+
+            var c = eval.Definition.Copy;
+            AddStepProp(body, "What is this?", c.WhatIsThis);
+            AddStepProp(body, "Why needed?", c.WhyNeeded);
+            AddStepProp(body, "What you do:", c.WhatYouDo);
+            AddStepProp(body, "What we verify:", c.WhatWeAutoVerify);
+
+            // Config found / missing
+            if (eval.ConfigFound.Count > 0)
             {
-                var body = new VisualElement();
-                body.AddToClassList("cs-step-details");
-                body.style.marginTop = 8;
-                body.style.paddingTop = 8;
-                body.style.borderTopWidth = 1;
-                body.style.borderTopColor = new StyleColor(new Color(1f, 1f, 1f, 0.05f));
-
-                var c = eval.Definition.Copy;
-                AddStepProp(body, "What is this?", c.WhatIsThis);
-                AddStepProp(body, "Why needed?", c.WhyNeeded);
-                AddStepProp(body, "What you do:", c.WhatYouDo);
-                AddStepProp(body, "What we verify:", c.WhatWeAutoVerify);
-
-                // Config found / missing
-                if (eval.ConfigFound.Count > 0)
+                foreach (var f in eval.ConfigFound)
                 {
-                    foreach (var f in eval.ConfigFound)
-                    {
-                        var row = new Label($"✓ {f}");
-                        row.style.fontSize = 10.5f;
-                        row.style.color = new StyleColor(CloudSaveUIStyle.ColGreen);
-                        row.style.marginLeft = 8;
-                        body.Add(row);
-                    }
+                    var row = new Label($"✓ {f}");
+                    row.style.fontSize = 10.5f;
+                    row.style.color = new StyleColor(CloudSaveUIStyle.ColGreen);
+                    row.style.marginLeft = 8;
+                    body.Add(row);
                 }
-
-                if (eval.ConfigMissing.Count > 0)
-                {
-                    foreach (var m in eval.ConfigMissing)
-                    {
-                        var row = new Label($"✗ {m}");
-                        row.style.fontSize = 10.5f;
-                        row.style.color = new StyleColor(CloudSaveUIStyle.ColAmber);
-                        row.style.marginLeft = 8;
-                        body.Add(row);
-                    }
-                }
-
-                // Action controls
-                var actionToolbar = new VisualElement();
-                actionToolbar.style.flexDirection = FlexDirection.Row;
-                actionToolbar.style.alignItems = Align.Center;
-                actionToolbar.style.marginTop = 8;
-
-                if (eval.Definition.HasRuntimeValidator && eval.State != StepState.Blocked)
-                {
-                    var runBtn = CloudSaveUIStyle.CreateButton(
-                        eval.Runtime == RuntimeVerificationStatus.Passed ? "Run Validation Again" : "Run Validation",
-                        "cs-btn-primary",
-                        () => RunValidation(eval)
-                    );
-                    runBtn.style.marginRight = 6;
-                    actionToolbar.Add(runBtn);
-                }
-
-                var copyAiBtn = CloudSaveUIStyle.CreateButton("🤖 Copy AI Prompt", "cs-btn-secondary", () =>
-                {
-                    EditorGUIUtility.systemCopyBuffer = AiPromptFor(eval);
-                    Debug.Log($"[CloudSave] AI Prompt copied for {eval.Definition.Title}");
-                    EditorUtility.DisplayDialog("Cloud Save", "AI Prompt copied to clipboard!", "OK");
-                });
-                copyAiBtn.style.marginRight = 6;
-                actionToolbar.Add(copyAiBtn);
-
-                if (c.Links != null)
-                {
-                    foreach (var link in c.Links)
-                    {
-                        var linkBtn = CloudSaveUIStyle.CreateButton(link.Label, "cs-btn-secondary", () =>
-                        {
-                            Application.OpenURL(link.Url);
-                        });
-                        linkBtn.style.marginRight = 4;
-                        actionToolbar.Add(linkBtn);
-                    }
-                }
-
-                body.Add(actionToolbar);
-                card.Add(body);
             }
+
+            if (eval.ConfigMissing.Count > 0)
+            {
+                foreach (var m in eval.ConfigMissing)
+                {
+                    var row = new Label($"✗ {m}");
+                    row.style.fontSize = 10.5f;
+                    row.style.color = new StyleColor(CloudSaveUIStyle.ColAmber);
+                    row.style.marginLeft = 8;
+                    body.Add(row);
+                }
+            }
+
+            // Action controls
+            var actionToolbar = new VisualElement();
+            actionToolbar.style.flexDirection = FlexDirection.Row;
+            actionToolbar.style.alignItems = Align.Center;
+            actionToolbar.style.marginTop = 8;
+
+            if (eval.Definition.HasRuntimeValidator && eval.State != StepState.Blocked)
+            {
+                var runBtn = CloudSaveUIStyle.CreateButton(
+                    eval.Runtime == RuntimeVerificationStatus.Passed ? "Run Validation Again" : "Run Validation",
+                    "cs-btn-primary",
+                    () => RunValidation(eval)
+                );
+                runBtn.style.marginRight = 6;
+                actionToolbar.Add(runBtn);
+            }
+
+            var copyAiBtn = CloudSaveUIStyle.CreateButton("🤖 Copy AI Prompt", "cs-btn-secondary", () =>
+            {
+                EditorGUIUtility.systemCopyBuffer = AiPromptFor(eval);
+                Debug.Log($"[CloudSave] AI Prompt copied for {eval.Definition.Title}");
+                EditorUtility.DisplayDialog("Cloud Save", "AI Prompt copied to clipboard!", "OK");
+            });
+            copyAiBtn.style.marginRight = 6;
+            actionToolbar.Add(copyAiBtn);
+
+            if (c.Links != null)
+            {
+                foreach (var link in c.Links)
+                {
+                    var linkBtn = CloudSaveUIStyle.CreateButton(link.Label, "cs-btn-secondary", () =>
+                    {
+                        Application.OpenURL(link.Url);
+                    });
+                    linkBtn.style.marginRight = 4;
+                    actionToolbar.Add(linkBtn);
+                }
+            }
+
+            body.Add(actionToolbar);
+            card.Add(body);
+
+            void ApplyExpandedVisuals(bool expanded)
+            {
+                toggleIcon.text = expanded ? "▾" : "▸";
+                toggleIcon.style.color = new StyleColor(expanded ? CloudSaveUIStyle.ColAccent : CloudSaveUIStyle.ColTextMuted);
+                titleLbl.style.color = new StyleColor(expanded ? Color.white : new Color(0.90f, 0.92f, 0.96f));
+
+                // Distinct styling so the user never gets lost when a card is expanded
+                card.style.backgroundColor = new StyleColor(expanded ? new Color(0.18f, 0.22f, 0.30f) : new Color(0.14f, 0.16f, 0.22f));
+                card.style.borderTopColor = new StyleColor(expanded ? new Color(0.35f, 0.44f, 0.60f, 0.65f) : CloudSaveUIStyle.ColCardBorder);
+                card.style.borderBottomColor = new StyleColor(expanded ? new Color(0.35f, 0.44f, 0.60f, 0.65f) : CloudSaveUIStyle.ColCardBorder);
+                card.style.borderRightColor = new StyleColor(expanded ? new Color(0.35f, 0.44f, 0.60f, 0.65f) : CloudSaveUIStyle.ColCardBorder);
+                card.style.borderLeftColor = new StyleColor(expanded ? CloudSaveUIStyle.ColAccent : stateColor);
+                card.style.borderLeftWidth = expanded ? 4.5f : 3;
+
+                body.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None;
+            }
+
+            ApplyExpandedVisuals(isExpanded);
+
+            header.RegisterCallback<ClickEvent>(_ =>
+            {
+                isExpanded = !isExpanded;
+                if (isExpanded) _expandedSteps.Add(eval.Definition.Id);
+                else _expandedSteps.Remove(eval.Definition.Id);
+                ApplyExpandedVisuals(isExpanded);
+            });
+
+            header.RegisterCallback<MouseEnterEvent>(_ =>
+            {
+                if (!isExpanded)
+                    card.style.backgroundColor = new StyleColor(new Color(0.16f, 0.19f, 0.26f));
+            });
+            header.RegisterCallback<MouseLeaveEvent>(_ =>
+            {
+                if (!isExpanded)
+                    card.style.backgroundColor = new StyleColor(new Color(0.14f, 0.16f, 0.22f));
+            });
 
             return card;
         }

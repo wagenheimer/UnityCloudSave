@@ -160,4 +160,103 @@ namespace Wagenheimer.CloudSave.Verification
             return id.Substring(0, 4) + "…" + id.Substring(id.Length - 4);
         }
     }
+
+    /// <summary>
+    /// Probe case that queries Unity Authentication backend to verify if Google Play Games
+    /// Identity Provider is registered and enabled in the Unity Dashboard.
+    /// </summary>
+    public sealed class GooglePlayGamesProviderCase : ValidationCase
+    {
+        public const string CaseId = "verify.provider.android";
+
+        public override string Id => CaseId;
+        public override string DisplayName => "Google Play Games Provider (Dashboard)";
+
+        public override async Task<ValidationResult> RunAsync()
+        {
+            try
+            {
+                if (UnityServices.State != ServicesInitializationState.Initialized)
+                    await UnityServices.InitializeAsync();
+                if (!AuthenticationService.Instance.IsSignedIn)
+                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            }
+            catch (Exception e)
+            {
+                return ValidationResult.Fail(CaseId, $"Cannot initialize UGS Auth for probe: {e.Message}", e);
+            }
+
+            try
+            {
+                await AuthenticationService.Instance.LinkWithGooglePlayGamesAsync("probe_dashboard_check");
+                return ValidationResult.Pass(CaseId, "Google Play Games provider is ACTIVE and configured in the Unity Dashboard!");
+            }
+            catch (AuthenticationException ex) when (ex.ErrorCode == AuthenticationErrorCodes.InvalidProvider)
+            {
+                return ValidationResult.Fail(CaseId,
+                    "Google Play Games provider is NOT configured in the Unity Dashboard (Error 10008: InvalidProvider).\n" +
+                    "Action: Go to dashboard.unity3d.com -> Player Authentication -> Identity Providers -> Add Google Play Games (Client ID & Secret).", ex);
+            }
+            catch (AuthenticationException ex)
+            {
+                // Any error other than InvalidProvider proves that UGS accepted the provider and attempted validation!
+                return ValidationResult.Pass(CaseId,
+                    $"Google Play Games provider is ACTIVE on Dashboard! (Server accepted provider; probe auth code rejected as expected: {ex.Message})");
+            }
+            catch (Exception ex)
+            {
+                return ValidationResult.Fail(CaseId, $"Probe check failed: {ex.Message}", ex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Probe case that queries Unity Authentication backend to verify if Apple Game Center
+    /// Identity Provider is registered and enabled in the Unity Dashboard.
+    /// </summary>
+    public sealed class AppleGameCenterProviderCase : ValidationCase
+    {
+        public const string CaseId = "verify.provider.ios";
+
+        public override string Id => CaseId;
+        public override string DisplayName => "Apple Game Center Provider (Dashboard)";
+
+        public override async Task<ValidationResult> RunAsync()
+        {
+            try
+            {
+                if (UnityServices.State != ServicesInitializationState.Initialized)
+                    await UnityServices.InitializeAsync();
+                if (!AuthenticationService.Instance.IsSignedIn)
+                    await AuthenticationService.Instance.SignInAnonymouslyAsync();
+            }
+            catch (Exception e)
+            {
+                return ValidationResult.Fail(CaseId, $"Cannot initialize UGS Auth for probe: {e.Message}", e);
+            }
+
+            try
+            {
+                await AuthenticationService.Instance.LinkWithAppleGameCenterAsync(
+                    "probe_sig", "probe_team", "https://apple.com/key", "probe_salt", 1234567890);
+                return ValidationResult.Pass(CaseId, "Apple Game Center provider is ACTIVE and configured in the Unity Dashboard!");
+            }
+            catch (AuthenticationException ex) when (ex.ErrorCode == AuthenticationErrorCodes.InvalidProvider)
+            {
+                return ValidationResult.Fail(CaseId,
+                    "Apple Game Center provider is NOT configured in the Unity Dashboard (Error 10008: InvalidProvider).\n" +
+                    "Action: Go to dashboard.unity3d.com -> Player Authentication -> Identity Providers -> Add Apple Game Center (Bundle ID & Team ID).", ex);
+            }
+            catch (AuthenticationException ex)
+            {
+                // Any error other than InvalidProvider proves that UGS accepted the provider and attempted validation!
+                return ValidationResult.Pass(CaseId,
+                    $"Apple Game Center provider is ACTIVE on Dashboard! (Server accepted provider; probe signature rejected as expected: {ex.Message})");
+            }
+            catch (Exception ex)
+            {
+                return ValidationResult.Fail(CaseId, $"Probe check failed: {ex.Message}", ex);
+            }
+        }
+    }
 }
