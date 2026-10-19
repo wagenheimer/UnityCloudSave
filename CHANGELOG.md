@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.30.1] - 2026-10-19
+
+### Fixed
+- use unique GUIDs for the new runtime assets
+
 ## [4.30.0] - 2026-10-19
 
 ### Added
