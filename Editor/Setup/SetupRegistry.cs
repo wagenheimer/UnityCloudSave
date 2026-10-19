@@ -108,8 +108,8 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                     "Facebook auth code found", "Optional: Facebook login → CloudAuth.LinkFacebookAsync(accessToken)."),
                 [Ids.ProviderAndroid] = new GpgsPresenceDetector(),
                 [Ids.ProviderApple] = new CodePresenceDetector(
-                    @"Apple\.GameKit|GKLocalPlayer|LinkAppleAsync|LinkAppleGameCenterAsync", "provider.ios",
-                    "Apple / Game Center auth code found", "Optional: Apple login → CloudAuth.LinkAppleAsync / LinkAppleGameCenterAsync."),
+                    @"Apple\.GameKit|GKLocalPlayer|LinkAppleAsync|LinkAppleGameCenterAsync|NativeSocial|LinkProvider|GameCenter", "provider.ios",
+                    "Apple Game Center auth code found", "Optional: Apple login → CloudAuth.LinkAppleAsync / LinkAppleGameCenterAsync / NativeSocial."),
 
                 [Ids.ComplianceDeletion] = new CodePresenceDetector(
                     @"DeleteAccountAsync", "compliance.deletion",
