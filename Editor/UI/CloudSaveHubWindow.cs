@@ -542,7 +542,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 actionToolbar.Add(runBtn);
             }
 
-            if (eval.Definition.Id == Ids.ComplianceDeletionUi)
+            if (eval.Definition.Id == SetupRegistry.Ids.ComplianceDeletionUi)
             {
                 var genBtn = CloudSaveUIStyle.CreateButton("📦 Generate UI Prefab", "cs-btn-primary", () =>
                 {
