@@ -36,6 +36,23 @@ namespace Wagenheimer.CloudSave.Editor.UI
         private Button[] _tabButtons;
 
         // Diagnostics Cache
+        public enum DiagnosticsViewMode
+        {
+            FourPillars = 0,
+            FullChecklist = 1
+        }
+
+        public enum StepFilter
+        {
+            All = 0,
+            IssuesOnly = 1,
+            RequiredOnly = 2,
+            ValidatedOnly = 3
+        }
+
+        private DiagnosticsViewMode _diagViewMode = DiagnosticsViewMode.FourPillars;
+        private StepFilter _stepFilter = StepFilter.All;
+
         private SetupRegistry _registry;
         private SetupContext _ctx;
         private CloudSaveSetupState _state;
@@ -240,29 +257,428 @@ namespace Wagenheimer.CloudSave.Editor.UI
             var metricsRow = new VisualElement();
             metricsRow.AddToClassList("cs-metrics-row");
             metricsRow.style.flexDirection = FlexDirection.Row;
-            metricsRow.style.marginBottom = 12;
+            metricsRow.style.marginBottom = 10;
 
             var integFraction = _snapshot?.Integration.ToString() ?? "0/0";
             var verifFraction = _snapshot?.Verification.ToString() ?? "0/0";
 
             var (readinessText, readinessCol) = _snapshot?.Readiness switch
             {
-                ReadinessVerdict.Green => ("READY", CloudSaveUIStyle.ColGreen),
-                ReadinessVerdict.Amber => ("ALMOST", CloudSaveUIStyle.ColAmber),
-                _ => ("NOT READY", CloudSaveUIStyle.ColRed)
+                ReadinessVerdict.Green => ("PRONTO ✔", CloudSaveUIStyle.ColGreen),
+                ReadinessVerdict.Amber => ("QUASE LÁ ⚠️", CloudSaveUIStyle.ColAmber),
+                _ => ("PENDENTE 🔴", CloudSaveUIStyle.ColRed)
             };
 
-            metricsRow.Add(CloudSaveUIStyle.CreateMetricCard("Integration Setup", integFraction, out var intLbl, CloudSaveUIStyle.ColAccent));
-            metricsRow.Add(CloudSaveUIStyle.CreateMetricCard("Verification Passed", verifFraction, out var verLbl, CloudSaveUIStyle.ColGreen));
-            metricsRow.Add(CloudSaveUIStyle.CreateMetricCard("Production Readiness", readinessText, out var readLbl, readinessCol));
+            metricsRow.Add(CloudSaveUIStyle.CreateMetricCard("Estrutura / Setup", integFraction, out var intLbl, CloudSaveUIStyle.ColAccent));
+            metricsRow.Add(CloudSaveUIStyle.CreateMetricCard("Validações Concluídas", verifFraction, out var verLbl, CloudSaveUIStyle.ColGreen));
+            metricsRow.Add(CloudSaveUIStyle.CreateMetricCard("Status de Produção", readinessText, out var readLbl, readinessCol));
 
             scroll.Add(metricsRow);
 
-            // 2. Next Best Action Card
-            if (_snapshot?.NextAction != null)
+            // 2. View Mode Selector (Sub-toolbar: 4 Pilares vs Checklist Técnico)
+            var modeBar = new VisualElement();
+            modeBar.style.flexDirection = FlexDirection.Row;
+            modeBar.style.backgroundColor = new StyleColor(CloudSaveUIStyle.ColCardBg);
+            modeBar.style.borderTopWidth = 1;
+            modeBar.style.borderBottomWidth = 1;
+            modeBar.style.borderLeftWidth = 1;
+            modeBar.style.borderRightWidth = 1;
+            modeBar.style.borderTopColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+            modeBar.style.borderBottomColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+            modeBar.style.borderLeftColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+            modeBar.style.borderRightColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+            modeBar.style.SetRadius(6);
+            modeBar.style.paddingTop = 3;
+            modeBar.style.paddingBottom = 3;
+            modeBar.style.paddingLeft = 3;
+            modeBar.style.paddingRight = 3;
+            modeBar.style.marginBottom = 12;
+
+            var btnPillars = new Button(() =>
+            {
+                _diagViewMode = DiagnosticsViewMode.FourPillars;
+                RenderActiveTab();
+            })
+            {
+                text = "🌟 Visão Geral dos 4 Pilares (Fluxo Recomendado)"
+            };
+            btnPillars.style.flexGrow = 1;
+            btnPillars.style.height = 28;
+            btnPillars.style.fontSize = 11;
+            btnPillars.style.unityFontStyleAndWeight = FontStyle.Bold;
+            btnPillars.style.borderTopWidth = 0;
+            btnPillars.style.borderBottomWidth = 0;
+            btnPillars.style.borderLeftWidth = 0;
+            btnPillars.style.borderRightWidth = 0;
+            btnPillars.style.SetRadius(4);
+
+            var btnChecklist = new Button(() =>
+            {
+                _diagViewMode = DiagnosticsViewMode.FullChecklist;
+                RenderActiveTab();
+            })
+            {
+                text = "📋 Checklist Técnico Detalhado (Todas as Categorias)"
+            };
+            btnChecklist.style.flexGrow = 1;
+            btnChecklist.style.height = 28;
+            btnChecklist.style.fontSize = 11;
+            btnChecklist.style.unityFontStyleAndWeight = FontStyle.Bold;
+            btnChecklist.style.borderTopWidth = 0;
+            btnChecklist.style.borderBottomWidth = 0;
+            btnChecklist.style.borderLeftWidth = 0;
+            btnChecklist.style.borderRightWidth = 0;
+            btnChecklist.style.SetRadius(4);
+
+            if (_diagViewMode == DiagnosticsViewMode.FourPillars)
+            {
+                btnPillars.style.backgroundColor = new StyleColor(CloudSaveUIStyle.ColAccent);
+                btnPillars.style.color = new StyleColor(Color.white);
+                btnChecklist.style.backgroundColor = new StyleColor(Color.clear);
+                btnChecklist.style.color = new StyleColor(CloudSaveUIStyle.ColTextMuted);
+            }
+            else
+            {
+                btnChecklist.style.backgroundColor = new StyleColor(CloudSaveUIStyle.ColAccent);
+                btnChecklist.style.color = new StyleColor(Color.white);
+                btnPillars.style.backgroundColor = new StyleColor(Color.clear);
+                btnPillars.style.color = new StyleColor(CloudSaveUIStyle.ColTextMuted);
+            }
+
+            modeBar.Add(btnPillars);
+            modeBar.Add(btnChecklist);
+            scroll.Add(modeBar);
+
+            // 3. Render Mode
+            if (_diagViewMode == DiagnosticsViewMode.FourPillars)
+            {
+                scroll.Add(BuildFourPillarsView());
+            }
+            else
+            {
+                scroll.Add(BuildChecklistView());
+            }
+
+            return scroll;
+        }
+
+        private VisualElement BuildFourPillarsView()
+        {
+            var container = new VisualElement();
+
+            if (_snapshot == null) return container;
+
+            // Pillar 1: Unity Cloud Services (UGS)
+            var p1Steps = _snapshot.Steps.Where(s =>
+                s.Definition.Id == SetupRegistry.Ids.UgsProject ||
+                s.Definition.Id == SetupRegistry.Ids.CloudSaveService ||
+                s.Definition.Id == SetupRegistry.Ids.AnonymousAuth ||
+                s.Definition.Id == SetupRegistry.Ids.AnonymousVerification).ToList();
+
+            var p1Status = ComputePillarStatus(p1Steps);
+            var p1Items = new List<(string, bool, string)>
+            {
+                ("Projeto UGS Conectado", IsStepReady(SetupRegistry.Ids.UgsProject), "Vinculado à Organização no Project Settings > Services"),
+                ("Pacote Cloud Save SDK", IsStepReady(SetupRegistry.Ids.CloudSaveService), "Biblioteca com.unity.services.cloudsave instalada"),
+                ("Pacote Authentication SDK", IsStepReady(SetupRegistry.Ids.AnonymousAuth), "Biblioteca com.unity.services.authentication instalada"),
+                ("Login Anônimo Testado", IsStepReady(SetupRegistry.Ids.AnonymousVerification), "Teste de autenticação e obtenção de Player ID estável")
+            };
+
+            var p1Actions = new List<(string, string, Action)>
+            {
+                ("⚙️ Abrir Project Settings", "cs-btn-primary", () => SettingsService.OpenProjectSettings("Project/Services")),
+                ("🧪 Testar Login Anônimo", "cs-btn-secondary", () =>
+                {
+                    var step = _snapshot.Steps.FirstOrDefault(s => s.Definition.Id == SetupRegistry.Ids.AnonymousVerification);
+                    if (step != null) RunValidation(step);
+                }),
+                ("🔍 Ver no Checklist", "cs-btn-secondary", () => SwitchToChecklistAndExpand(SetupRegistry.Ids.UgsProject))
+            };
+
+            container.Add(BuildPillarCard(
+                "1",
+                "Conexão Unity Gaming Services (UGS)",
+                "A infraestrutura de nuvem base. Conecta seu jogo aos servidores da Unity para armazenamento e autenticação.",
+                p1Status.statusText,
+                p1Status.badgeClass,
+                p1Status.color,
+                p1Items,
+                p1Actions
+            ));
+
+            // Pillar 2: Game Code & Save Architecture
+            var p2Steps = _snapshot.Steps.Where(s =>
+                s.Definition.Id == SetupRegistry.Ids.CodeController ||
+                s.Definition.Id == SetupRegistry.Ids.CodeConfigure ||
+                s.Definition.Id == SetupRegistry.Ids.CodeInitSync ||
+                s.Definition.Id == SetupRegistry.Ids.CodeSave ||
+                s.Definition.Id == SetupRegistry.Ids.SaveSerializable ||
+                s.Definition.Id == SetupRegistry.Ids.SaveTimestamp).ToList();
+
+            var p2Status = ComputePillarStatus(p2Steps);
+            bool usesController = IsStepReady(SetupRegistry.Ids.CodeController);
+            var p2Items = new List<(string, bool, string)>
+            {
+                (usesController ? "CloudSaveController (Recomendado)" : "Inicialização CloudSync", usesController || IsStepReady(SetupRegistry.Ids.CodeConfigure), usesController ? "Fluxo automático de sincronia ativo" : "Chamada CloudSync.Configure / InitAndSyncAsync"),
+                ("Chamada de Salvamento em Nuvem", usesController || IsStepReady(SetupRegistry.Ids.CodeSave), usesController ? "Acionado via MarkDirty() ou StartAsync()" : "Chamada CloudSync.SaveAsync() após saves locais"),
+                ("Classe de Dados Serializável", IsStepReady(SetupRegistry.Ids.SaveSerializable), "Classe decorada com [System.Serializable] para JsonUtility"),
+                ("Timestamp de Conflito", usesController || IsStepReady(SetupRegistry.Ids.SaveTimestamp), usesController ? "Gerenciado automaticamente pelo Controller" : "Campo long LastSaved / SaveDateTime")
+            };
+
+            var p2Actions = new List<(string, string, Action)>
+            {
+                ("📋 Copiar Código Recomendado", "cs-btn-primary", CopyControllerSnippet),
+                ("🔍 Ver no Checklist", "cs-btn-secondary", () => SwitchToChecklistAndExpand(SetupRegistry.Ids.CodeController))
+            };
+
+            container.Add(BuildPillarCard(
+                "2",
+                "Integração no Código do Jogo",
+                "Como seu jogo lê e grava na nuvem. O CloudSaveController cuida de sincronia, conflitos e inicialização automaticamente.",
+                p2Status.statusText,
+                p2Status.badgeClass,
+                p2Status.color,
+                p2Items,
+                p2Actions
+            ));
+
+            // Pillar 3: Mobile Identity Providers
+            var p3Steps = _snapshot.Steps.Where(s =>
+                s.Definition.Id == SetupRegistry.Ids.ProviderAndroid ||
+                s.Definition.Id == SetupRegistry.Ids.ProviderApple ||
+                s.Definition.Id == SetupRegistry.Ids.CodeAuthUpgrade).ToList();
+
+            var p3Status = ComputePillarStatus(p3Steps);
+            var p3Items = new List<(string, bool, string)>
+            {
+                ("Google Play Games (Android)", IsStepReady(SetupRegistry.Ids.ProviderAndroid), "Login nativo silencioso (Game Service, NÃO web OAuth)"),
+                ("Apple Game Center (iOS)", IsStepReady(SetupRegistry.Ids.ProviderApple), "Banner nativo Game Center e vínculo de conta"),
+                ("Vínculo de Contas no Código", IsStepReady(SetupRegistry.Ids.CodeAuthUpgrade), "Suporte a CloudAuth.Link*Async para persistência cross-device")
+            };
+
+            var p3Actions = new List<(string, string, Action)>
+            {
+                ("🌐 Unity Dashboard (Providers)", "cs-btn-primary", () => Application.OpenURL("https://cloud.unity.com/")),
+                ("💡 Dicas Game Services vs Web", "cs-btn-secondary", () =>
+                {
+                    EditorUtility.DisplayDialog(
+                        "Configuração Mobile Recomendada",
+                        "Para jogos mobile, NUNCA use provedores web com tela de login:\n\n" +
+                        "1. Android: Escolha 'Google Play Games' (NÃO escolha 'Google').\n" +
+                        "   - Login 100% silencioso e automático.\n" +
+                        "   - Sincroniza com as Conquistas (Achievements).\n\n" +
+                        "2. iOS: Escolha 'Apple Game Center' (NÃO escolha 'Sign in with Apple').\n" +
+                        "   - Banner nativo Game Center no topo da tela.\n" +
+                        "   - Sem necessidade de tela de login web.",
+                        "Entendido"
+                    );
+                }),
+                ("🔍 Ver no Checklist", "cs-btn-secondary", () => SwitchToChecklistAndExpand(SetupRegistry.Ids.ProviderAndroid))
+            };
+
+            container.Add(BuildPillarCard(
+                "3",
+                "Provedores Mobile (Google Play & Apple)",
+                "Permite que o jogador jogue no celular, troque de aparelho ou reinstale e continue de onde parou sem telas de login chatas.",
+                p3Status.statusText,
+                p3Status.badgeClass,
+                p3Status.color,
+                p3Items,
+                p3Actions
+            ));
+
+            // Pillar 4: Store Compliance & Safety
+            var p4Steps = _snapshot.Steps.Where(s =>
+                s.Definition.Id == SetupRegistry.Ids.ComplianceDeletion ||
+                s.Definition.Id == SetupRegistry.Ids.ComplianceDeletionUi ||
+                s.Definition.Id == SetupRegistry.Ids.ComplianceUrls).ToList();
+
+            var p4Status = ComputePillarStatus(p4Steps);
+            var p4Items = new List<(string, bool, string)>
+            {
+                ("Exclusão de Conta in-app (DeleteAccountAsync)", IsStepReady(SetupRegistry.Ids.ComplianceDeletion), "Apple Guideline 5.1.1(v) & Google Play: obrigatório para aprovação"),
+                ("Interface de Confirmação de Exclusão", IsStepReady(SetupRegistry.Ids.ComplianceDeletionUi), "Botão acessível em configurações com diálogo de confirmação"),
+                ("URLs de Privacidade e Exclusão", IsStepReady(SetupRegistry.Ids.ComplianceUrls), "Links de Política de Privacidade acessíveis no app")
+            };
+
+            var p4Actions = new List<(string, string, Action)>
+            {
+                ("📦 Gerar UI Prefab Deletar Conta", "cs-btn-primary", () =>
+                {
+                    CloudSaveUIPrefabGenerator.GenerateAccountDeletionUI();
+                    RecomputeDiagnostics();
+                    RenderActiveTab();
+                }),
+                ("📌 Inserir UI na Cena Atual", "cs-btn-secondary", () =>
+                {
+                    CloudSaveUIPrefabGenerator.CreateAccountDeletionUIInScene();
+                }),
+                ("🔍 Ver no Checklist", "cs-btn-secondary", () => SwitchToChecklistAndExpand(SetupRegistry.Ids.ComplianceDeletion))
+            };
+
+            container.Add(BuildPillarCard(
+                "4",
+                "Conformidade das Lojas (Store Compliance)",
+                "Exigências obrigatórias para ter o jogo aprovado pela Apple e Google. Oferecer exclusão de conta e termos de privacidade.",
+                p4Status.statusText,
+                p4Status.badgeClass,
+                p4Status.color,
+                p4Items,
+                p4Actions
+            ));
+
+            return container;
+        }
+
+        private VisualElement BuildPillarCard(
+            string number,
+            string title,
+            string description,
+            string statusText,
+            string badgeClass,
+            Color statusColor,
+            List<(string label, bool ok, string detail)> items,
+            List<(string btnText, string btnClass, Action onClick)> actions)
+        {
+            var card = new VisualElement();
+            card.style.backgroundColor = new StyleColor(CloudSaveUIStyle.ColCardBg);
+            card.style.borderTopWidth = 1;
+            card.style.borderBottomWidth = 1;
+            card.style.borderRightWidth = 1;
+            card.style.borderLeftWidth = 4;
+            card.style.borderTopColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+            card.style.borderBottomColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+            card.style.borderRightColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+            card.style.borderLeftColor = new StyleColor(statusColor);
+            card.style.SetRadius(8);
+            card.style.paddingTop = 12;
+            card.style.paddingBottom = 12;
+            card.style.paddingLeft = 14;
+            card.style.paddingRight = 14;
+            card.style.marginBottom = 12;
+
+            // Header
+            var headerRow = new VisualElement();
+            headerRow.style.flexDirection = FlexDirection.Row;
+            headerRow.style.justifyContent = Justify.SpaceBetween;
+            headerRow.style.alignItems = Align.Center;
+            headerRow.style.marginBottom = 4;
+
+            var titleGroup = new VisualElement();
+            titleGroup.style.flexDirection = FlexDirection.Row;
+            titleGroup.style.alignItems = Align.Center;
+
+            var numCircle = new Label(number);
+            numCircle.style.width = 22;
+            numCircle.style.height = 22;
+            numCircle.style.backgroundColor = new StyleColor(statusColor);
+            numCircle.style.color = new StyleColor(Color.white);
+            numCircle.style.fontSize = 12;
+            numCircle.style.unityFontStyleAndWeight = FontStyle.Bold;
+            numCircle.style.unityTextAlign = TextAnchor.MiddleCenter;
+            numCircle.style.SetRadius(11);
+            numCircle.style.marginRight = 10;
+            titleGroup.Add(numCircle);
+
+            var titleLbl = new Label(title);
+            titleLbl.style.fontSize = 13.5f;
+            titleLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
+            titleLbl.style.color = new StyleColor(CloudSaveUIStyle.ColTextWhite);
+            titleGroup.Add(titleLbl);
+            headerRow.Add(titleGroup);
+
+            var badge = CloudSaveUIStyle.CreateBadge(statusText, badgeClass);
+            headerRow.Add(badge);
+            card.Add(headerRow);
+
+            var descLbl = new Label(description);
+            descLbl.style.fontSize = 11;
+            descLbl.style.color = new StyleColor(CloudSaveUIStyle.ColTextMuted);
+            descLbl.style.whiteSpace = WhiteSpace.Normal;
+            descLbl.style.marginBottom = 10;
+            descLbl.style.marginLeft = 32;
+            card.Add(descLbl);
+
+            // Item Checklist
+            var itemsBox = new VisualElement();
+            itemsBox.style.backgroundColor = new StyleColor(new Color(0.08f, 0.09f, 0.12f, 0.6f));
+            itemsBox.style.borderTopWidth = 1;
+            itemsBox.style.borderBottomWidth = 1;
+            itemsBox.style.borderLeftWidth = 1;
+            itemsBox.style.borderRightWidth = 1;
+            itemsBox.style.borderTopColor = new StyleColor(new Color(1f, 1f, 1f, 0.05f));
+            itemsBox.style.borderBottomColor = new StyleColor(new Color(1f, 1f, 1f, 0.05f));
+            itemsBox.style.borderLeftColor = new StyleColor(new Color(1f, 1f, 1f, 0.05f));
+            itemsBox.style.borderRightColor = new StyleColor(new Color(1f, 1f, 1f, 0.05f));
+            itemsBox.style.SetRadius(6);
+            itemsBox.style.paddingTop = 6;
+            itemsBox.style.paddingBottom = 6;
+            itemsBox.style.paddingLeft = 10;
+            itemsBox.style.paddingRight = 10;
+            itemsBox.style.marginBottom = 10;
+
+            foreach (var (lbl, ok, detail) in items)
+            {
+                var itemRow = new VisualElement();
+                itemRow.style.flexDirection = FlexDirection.Row;
+                itemRow.style.alignItems = Align.Center;
+                itemRow.style.paddingTop = 3;
+                itemRow.style.paddingBottom = 3;
+
+                var iconLbl = new Label(ok ? "✔" : "⚠️");
+                iconLbl.style.fontSize = 11;
+                iconLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
+                iconLbl.style.color = new StyleColor(ok ? CloudSaveUIStyle.ColGreen : CloudSaveUIStyle.ColAmber);
+                iconLbl.style.marginRight = 8;
+                itemRow.Add(iconLbl);
+
+                var itemText = new Label(lbl);
+                itemText.style.fontSize = 11;
+                itemText.style.unityFontStyleAndWeight = FontStyle.Bold;
+                itemText.style.color = new StyleColor(ok ? CloudSaveUIStyle.ColTextWhite : new Color(0.95f, 0.85f, 0.65f));
+                itemRow.Add(itemText);
+
+                if (!string.IsNullOrEmpty(detail))
+                {
+                    var detailLbl = new Label($"— {detail}");
+                    detailLbl.style.fontSize = 10.5f;
+                    detailLbl.style.color = new StyleColor(CloudSaveUIStyle.ColTextMuted);
+                    detailLbl.style.marginLeft = 6;
+                    itemRow.Add(detailLbl);
+                }
+
+                itemsBox.Add(itemRow);
+            }
+            card.Add(itemsBox);
+
+            // Actions row
+            var actionRow = new VisualElement();
+            actionRow.style.flexDirection = FlexDirection.Row;
+            actionRow.style.flexWrap = Wrap.Wrap;
+
+            foreach (var (btnText, btnClass, onClick) in actions)
+            {
+                var btn = CloudSaveUIStyle.CreateButton(btnText, btnClass, onClick);
+                btn.style.marginRight = 6;
+                btn.style.marginBottom = 4;
+                actionRow.Add(btn);
+            }
+            card.Add(actionRow);
+
+            return card;
+        }
+
+        private VisualElement BuildChecklistView()
+        {
+            var container = new VisualElement();
+
+            if (_snapshot == null) return container;
+
+            // 1. Next Best Action Card
+            if (_snapshot.NextAction != null)
             {
                 var next = _snapshot.NextAction;
-                var nextCard = CloudSaveUIStyle.CreateCard("RECOMMENDED NEXT ACTION: " + next.Step.Definition.Title, next.Why);
+                var nextCard = CloudSaveUIStyle.CreateCard("AÇÃO RECOMENDADA A SEGUIR: " + next.Step.Definition.Title, next.Why);
                 nextCard.style.borderLeftColor = new StyleColor(CloudSaveUIStyle.ColAccent);
                 nextCard.style.borderLeftWidth = 3;
 
@@ -271,7 +687,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 actionRow.style.alignItems = Align.Center;
                 actionRow.style.marginTop = 6;
 
-                var showBtn = CloudSaveUIStyle.CreateButton("Inspect Step", "cs-btn-primary", () =>
+                var showBtn = CloudSaveUIStyle.CreateButton("🔍 Inspecionar Passo", "cs-btn-primary", () =>
                 {
                     _expandedSteps.Clear();
                     _expandedSteps.Add(next.Step.Definition.Id);
@@ -281,7 +697,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
 
                 if (next.Step.Definition.HasRuntimeValidator)
                 {
-                    var runBtn = CloudSaveUIStyle.CreateButton("Run Validation Test", "cs-btn-secondary", () =>
+                    var runBtn = CloudSaveUIStyle.CreateButton("🧪 Rodar Teste de Validação", "cs-btn-secondary", () =>
                     {
                         RunValidation(next.Step);
                     });
@@ -290,116 +706,185 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 }
 
                 nextCard.Add(actionRow);
-                scroll.Add(nextCard);
+                container.Add(nextCard);
             }
 
-            // 3. Actions Toolbar
-            var toolCard = CloudSaveUIStyle.CreateCard("Diagnostic Controls", $"Target: {EditorUserBuildSettings.activeBuildTarget}");
-            var toolbar = new VisualElement();
-            toolbar.style.flexDirection = FlexDirection.Row;
-            toolbar.style.flexWrap = Wrap.Wrap;
+            // 2. Filter Pills Toolbar
+            var allSteps = _snapshot.Steps.Where(e => e.State != StepState.NotApplicable).ToList();
+            int totalCount = allSteps.Count;
+            int issuesCount = allSteps.Count(e => e.State == StepState.Failed || e.State == StepState.NeedsAttention || e.State == StepState.NeedsValidation || e.State == StepState.Blocked);
+            int reqCount = allSteps.Count(e => e.Definition.Obligation == Obligation.Required);
+            int valCount = allSteps.Count(e => e.State == StepState.Validated || e.State == StepState.ManuallyConfirmed);
 
-            toolbar.Add(CloudSaveUIStyle.CreateButton("Re-Run Diagnostic Scan", "cs-btn-primary", () =>
+            var filterCard = CloudSaveUIStyle.CreateCard("Filtros do Checklist", $"Target atual: {EditorUserBuildSettings.activeBuildTarget}");
+
+            var filterBar = new VisualElement();
+            filterBar.style.flexDirection = FlexDirection.Row;
+            filterBar.style.flexWrap = Wrap.Wrap;
+            filterBar.style.marginBottom = 8;
+
+            AddFilterButton(filterBar, $"Todos ({totalCount})", StepFilter.All, _stepFilter == StepFilter.All);
+            AddFilterButton(filterBar, $"⚠️ Pendências & Atenção ({issuesCount})", StepFilter.IssuesOnly, _stepFilter == StepFilter.IssuesOnly, issuesCount > 0 ? CloudSaveUIStyle.ColAmber : (Color?)null);
+            AddFilterButton(filterBar, $"🚨 Obrigatórios ({reqCount})", StepFilter.RequiredOnly, _stepFilter == StepFilter.RequiredOnly);
+            AddFilterButton(filterBar, $"✔ Validados ({valCount})", StepFilter.ValidatedOnly, _stepFilter == StepFilter.ValidatedOnly, valCount > 0 ? CloudSaveUIStyle.ColGreen : (Color?)null);
+
+            filterCard.Add(filterBar);
+
+            // Controls sub-row
+            var controlBar = new VisualElement();
+            controlBar.style.flexDirection = FlexDirection.Row;
+            controlBar.style.flexWrap = Wrap.Wrap;
+
+            controlBar.Add(CloudSaveUIStyle.CreateButton("🔄 Re-Scan Diagnóstico", "cs-btn-primary", () =>
             {
                 RecomputeDiagnostics();
                 RenderActiveTab();
             }));
 
-            toolbar.Add(CloudSaveUIStyle.CreateButton("Generate All UI Prefabs", "cs-btn-secondary", () =>
+            controlBar.Add(CloudSaveUIStyle.CreateButton("📦 Gerar UI Prefabs", "cs-btn-secondary", () =>
             {
                 CloudSaveUIPrefabGenerator.GenerateAll();
                 RecomputeDiagnostics();
                 RenderActiveTab();
             }));
 
-            toolbar.Add(CloudSaveUIStyle.CreateButton("Add Debug Overlay to Scene", "cs-btn-secondary", () =>
+            controlBar.Add(CloudSaveUIStyle.CreateButton("🛠️ Inserir Debug Overlay", "cs-btn-secondary", () =>
             {
                 CloudSaveDebugOverlayEditor.AddDebugOverlayToScene();
             }));
 
-            toolbar.Add(CloudSaveUIStyle.CreateButton("Generate Delete Account Prefab", "cs-btn-secondary", () =>
+            controlBar.Add(CloudSaveUIStyle.CreateButton("🤖 Copiar Relatório / Prompt AI", "cs-btn-secondary", CopyDiagnosticPrompt));
+
+            controlBar.Add(CloudSaveUIStyle.CreateButton("▾ Expandir Todos", "cs-btn-secondary", () =>
             {
-                CloudSaveUIPrefabGenerator.GenerateAccountDeletionUI();
+                foreach (var s in _snapshot.Steps) _expandedSteps.Add(s.Definition.Id);
+                RenderActiveTab();
             }));
 
-            toolbar.Add(CloudSaveUIStyle.CreateButton("Copy Diagnostic Report / AI Prompt", "cs-btn-secondary", () =>
-            {
-                CopyDiagnosticPrompt();
-            }));
-
-            toolbar.Add(CloudSaveUIStyle.CreateButton("▾ Expand All", "cs-btn-secondary", () =>
-            {
-                if (_snapshot != null)
-                {
-                    foreach (var s in _snapshot.Steps)
-                        _expandedSteps.Add(s.Definition.Id);
-                    RenderActiveTab();
-                }
-            }));
-
-            toolbar.Add(CloudSaveUIStyle.CreateButton("▸ Collapse All", "cs-btn-secondary", () =>
+            controlBar.Add(CloudSaveUIStyle.CreateButton("▸ Recolher Todos", "cs-btn-secondary", () =>
             {
                 _expandedSteps.Clear();
                 RenderActiveTab();
             }));
 
-            toolCard.Add(toolbar);
-            scroll.Add(toolCard);
+            filterCard.Add(controlBar);
+            container.Add(filterCard);
 
-            // 4. Grouped Steps List
-            if (_snapshot != null)
+            // 3. Filtered Steps List
+            var filteredSteps = allSteps.AsEnumerable();
+            switch (_stepFilter)
             {
-                foreach (var group in _snapshot.Steps
-                             .Where(e => e.State != StepState.NotApplicable)
-                             .GroupBy(e => e.Definition.Category)
-                             .OrderBy(g => (int)g.Key))
-                {
-                    var groupCard = CloudSaveUIStyle.CreateCard(group.Key.ToString() + " Verification");
-
-                    if (group.Key == StepCategory.Providers)
-                    {
-                        var guideBox = new VisualElement();
-                        guideBox.style.backgroundColor = new StyleColor(new Color(0.08f, 0.22f, 0.35f, 0.7f));
-                        guideBox.style.borderLeftColor = new StyleColor(CloudSaveUIStyle.ColAccent);
-                        guideBox.style.borderLeftWidth = 3.5f;
-                        guideBox.style.SetRadius(4);
-                        guideBox.style.paddingLeft = 10;
-                        guideBox.style.paddingRight = 10;
-                        guideBox.style.paddingTop = 8;
-                        guideBox.style.paddingBottom = 8;
-                        guideBox.style.marginBottom = 10;
-
-                        var guideTitle = new Label("💡 Game Services vs Web Logins (Unity Dashboard Setup)");
-                        guideTitle.style.fontSize = 11.5f;
-                        guideTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
-                        guideTitle.style.color = new StyleColor(CloudSaveUIStyle.ColAccent);
-                        guideTitle.style.marginBottom = 4;
-                        guideBox.Add(guideTitle);
-
-                        var guideText = new Label(
-                            "• Para jogos mobile, use os Game Services nativos: Google Play Games (Android) e Apple Game Center (iOS).\n" +
-                            "• Vantagens: Login 100% silencioso/automático, sem telas de e-mail, e total sincronia com os Achievements.\n" +
-                            "• ⚠️ No Unity Dashboard (Add Identity Provider):\n" +
-                            "   - Escolha 'Google Play Games' (NÃO use 'Google' web).\n" +
-                            "   - Escolha 'Apple Game Center' (NÃO use 'Sign in with Apple').");
-                        guideText.style.fontSize = 10.5f;
-                        guideText.style.color = new StyleColor(CloudSaveUIStyle.ColTextWhite);
-                        guideText.style.whiteSpace = WhiteSpace.Normal;
-                        guideBox.Add(guideText);
-
-                        groupCard.Add(guideBox);
-                    }
-
-                    foreach (var eval in group)
-                    {
-                        groupCard.Add(BuildStepCard(eval));
-                    }
-
-                    scroll.Add(groupCard);
-                }
+                case StepFilter.IssuesOnly:
+                    filteredSteps = filteredSteps.Where(e => e.State == StepState.Failed || e.State == StepState.NeedsAttention || e.State == StepState.NeedsValidation || e.State == StepState.Blocked);
+                    break;
+                case StepFilter.RequiredOnly:
+                    filteredSteps = filteredSteps.Where(e => e.Definition.Obligation == Obligation.Required);
+                    break;
+                case StepFilter.ValidatedOnly:
+                    filteredSteps = filteredSteps.Where(e => e.State == StepState.Validated || e.State == StepState.ManuallyConfirmed);
+                    break;
             }
 
-            return scroll;
+            var stepList = filteredSteps.ToList();
+            if (stepList.Count == 0)
+            {
+                var emptyCard = CloudSaveUIStyle.CreateCard("Nenhum item para exibir neste filtro", "Altere o filtro acima para visualizar outros passos.");
+                emptyCard.style.paddingTop = 18;
+                emptyCard.style.paddingBottom = 18;
+                container.Add(emptyCard);
+                return container;
+            }
+
+            foreach (var group in stepList
+                         .GroupBy(e => e.Definition.Category)
+                         .OrderBy(g => (int)g.Key))
+            {
+                var groupCard = CloudSaveUIStyle.CreateCard(GetCategoryDisplayName(group.Key));
+
+                if (group.Key == StepCategory.Providers)
+                {
+                    var guideBox = new VisualElement();
+                    guideBox.style.backgroundColor = new StyleColor(new Color(0.08f, 0.22f, 0.35f, 0.7f));
+                    guideBox.style.borderLeftColor = new StyleColor(CloudSaveUIStyle.ColAccent);
+                    guideBox.style.borderLeftWidth = 3.5f;
+                    guideBox.style.SetRadius(4);
+                    guideBox.style.paddingLeft = 10;
+                    guideBox.style.paddingRight = 10;
+                    guideBox.style.paddingTop = 8;
+                    guideBox.style.paddingBottom = 8;
+                    guideBox.style.marginBottom = 10;
+
+                    var guideTitle = new Label("💡 Game Services vs Web Logins (Unity Dashboard Setup)");
+                    guideTitle.style.fontSize = 11.5f;
+                    guideTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
+                    guideTitle.style.color = new StyleColor(CloudSaveUIStyle.ColAccent);
+                    guideTitle.style.marginBottom = 4;
+                    guideBox.Add(guideTitle);
+
+                    var guideText = new Label(
+                        "• Para jogos mobile, use os Game Services nativos: Google Play Games (Android) e Apple Game Center (iOS).\n" +
+                        "• Vantagens: Login 100% silencioso/automático, sem telas de e-mail, e total sincronia com os Achievements.\n" +
+                        "• ⚠️ No Unity Dashboard (Add Identity Provider):\n" +
+                        "   - Escolha 'Google Play Games' (NÃO use 'Google' web).\n" +
+                        "   - Escolha 'Apple Game Center' (NÃO use 'Sign in with Apple').");
+                    guideText.style.fontSize = 10.5f;
+                    guideText.style.color = new StyleColor(CloudSaveUIStyle.ColTextWhite);
+                    guideText.style.whiteSpace = WhiteSpace.Normal;
+                    guideBox.Add(guideText);
+
+                    groupCard.Add(guideBox);
+                }
+
+                foreach (var eval in group)
+                {
+                    groupCard.Add(BuildStepCard(eval));
+                }
+
+                container.Add(groupCard);
+            }
+
+            return container;
+        }
+
+        private void AddFilterButton(VisualElement bar, string text, StepFilter filter, bool active, Color? activeAccent = null)
+        {
+            var btn = new Button(() =>
+            {
+                _stepFilter = filter;
+                RenderActiveTab();
+            })
+            {
+                text = text
+            };
+            btn.style.height = 26;
+            btn.style.fontSize = 10.5f;
+            btn.style.unityFontStyleAndWeight = FontStyle.Bold;
+            btn.style.SetRadius(4);
+            btn.style.marginRight = 6;
+            btn.style.marginBottom = 4;
+            btn.style.paddingLeft = 10;
+            btn.style.paddingRight = 10;
+
+            if (active)
+            {
+                btn.style.backgroundColor = new StyleColor(activeAccent ?? CloudSaveUIStyle.ColAccent);
+                btn.style.color = new StyleColor(Color.white);
+                btn.style.borderTopColor = new StyleColor(activeAccent ?? CloudSaveUIStyle.ColAccent);
+                btn.style.borderBottomColor = new StyleColor(activeAccent ?? CloudSaveUIStyle.ColAccent);
+                btn.style.borderLeftColor = new StyleColor(activeAccent ?? CloudSaveUIStyle.ColAccent);
+                btn.style.borderRightColor = new StyleColor(activeAccent ?? CloudSaveUIStyle.ColAccent);
+            }
+            else
+            {
+                btn.style.backgroundColor = new StyleColor(new Color(0.14f, 0.16f, 0.22f));
+                btn.style.color = new StyleColor(CloudSaveUIStyle.ColTextMuted);
+                btn.style.borderTopColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+                btn.style.borderBottomColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+                btn.style.borderLeftColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+                btn.style.borderRightColor = new StyleColor(CloudSaveUIStyle.ColCardBorder);
+            }
+
+            bar.Add(btn);
         }
 
         private VisualElement BuildStepCard(StepEvaluation eval)
@@ -420,23 +905,24 @@ namespace Wagenheimer.CloudSave.Editor.UI
             card.style.paddingLeft = 10;
             card.style.paddingRight = 10;
             card.style.marginBottom = 6;
-            card.style.borderLeftWidth = 3;
+            card.style.borderLeftWidth = 3.5f;
 
             var (badgeText, badgeClass) = eval.State switch
             {
-                StepState.Validated => ("VALIDATED", "cs-badge-pass"),
-                StepState.ManuallyConfirmed => ("CONFIRMED", "cs-badge-info"),
-                StepState.NeedsValidation => ("NEEDS VALIDATION", "cs-badge-warn"),
-                StepState.NeedsAttention => ("NEEDS ATTENTION", "cs-badge-warn"),
-                StepState.Failed => ("FAILED", "cs-badge-fail"),
-                StepState.Blocked => ("BLOCKED", "cs-badge-warn"),
-                _ => ("NOT CONFIGURED", "cs-badge-neutral")
+                StepState.Validated => ("VALIDADO ✔", "cs-badge-pass"),
+                StepState.ManuallyConfirmed => ("CONFIRMADO", "cs-badge-info"),
+                StepState.NeedsValidation => ("REQUER TESTE", "cs-badge-warn"),
+                StepState.NeedsAttention => ("ATENÇÃO ⚠️", "cs-badge-warn"),
+                StepState.Failed => ("FALHOU ✗", "cs-badge-fail"),
+                StepState.Blocked => ("BLOQUEADO ⛔", "cs-badge-fail"),
+                _ => ("NÃO CONFIGURADO", "cs-badge-neutral")
             };
 
             var stateColor = eval.State switch
             {
                 StepState.Validated => CloudSaveUIStyle.ColGreen,
                 StepState.Failed => CloudSaveUIStyle.ColRed,
+                StepState.Blocked => CloudSaveUIStyle.ColRed,
                 _ => CloudSaveUIStyle.ColAmber
             };
 
@@ -468,10 +954,24 @@ namespace Wagenheimer.CloudSave.Editor.UI
             titleLbl.style.color = new StyleColor(CloudSaveUIStyle.ColTextWhite);
             titleRow.Add(titleLbl);
 
-            var oblLbl = new Label($"({eval.Definition.Obligation})");
+            var oblText = eval.Definition.Obligation switch
+            {
+                Obligation.Required => "Obrigatório",
+                Obligation.Recommended => "Recomendado",
+                _ => "Opcional"
+            };
+            var oblColor = eval.Definition.Obligation switch
+            {
+                Obligation.Required => CloudSaveUIStyle.ColRed,
+                Obligation.Recommended => CloudSaveUIStyle.ColAccent,
+                _ => CloudSaveUIStyle.ColTextMuted
+            };
+
+            var oblLbl = new Label($"({oblText})");
             oblLbl.style.fontSize = 10;
-            oblLbl.style.color = new StyleColor(CloudSaveUIStyle.ColTextMuted);
+            oblLbl.style.color = new StyleColor(oblColor);
             oblLbl.style.marginLeft = 6;
+            oblLbl.style.unityFontStyleAndWeight = FontStyle.Bold;
             titleRow.Add(oblLbl);
 
             header.Add(titleRow);
@@ -488,6 +988,59 @@ namespace Wagenheimer.CloudSave.Editor.UI
             body.style.paddingTop = 8;
             body.style.borderTopWidth = 1;
             body.style.borderTopColor = new StyleColor(new Color(1f, 1f, 1f, 0.08f));
+
+            // Blocked Banner if blocked
+            if (eval.State == StepState.Blocked && eval.Definition.DependsOn != null)
+            {
+                string blockedReason = null;
+                string unblockStepId = null;
+                foreach (var dep in eval.Definition.DependsOn)
+                {
+                    var upstream = _snapshot.Steps.FirstOrDefault(s => s.Definition.Id == dep.StepId);
+                    if (upstream != null && upstream.State != StepState.Validated && upstream.State != StepState.ManuallyConfirmed)
+                    {
+                        blockedReason = $"Bloqueado por: \"{upstream.Definition.Title}\" ({upstream.State}). Conclua o passo anterior primeiro.";
+                        unblockStepId = upstream.Definition.Id;
+                        break;
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(blockedReason))
+                {
+                    var blockBox = new VisualElement();
+                    blockBox.style.backgroundColor = new StyleColor(new Color(0.94f, 0.27f, 0.27f, 0.15f));
+                    blockBox.style.borderLeftColor = new StyleColor(CloudSaveUIStyle.ColRed);
+                    blockBox.style.borderLeftWidth = 3;
+                    blockBox.style.SetRadius(4);
+                    blockBox.style.paddingLeft = 8;
+                    blockBox.style.paddingRight = 8;
+                    blockBox.style.paddingTop = 6;
+                    blockBox.style.paddingBottom = 6;
+                    blockBox.style.marginBottom = 8;
+                    blockBox.style.flexDirection = FlexDirection.Row;
+                    blockBox.style.alignItems = Align.Center;
+                    blockBox.style.justifyContent = Justify.SpaceBetween;
+
+                    var blockLbl = new Label($"⛔ {blockedReason}");
+                    blockLbl.style.fontSize = 11;
+                    blockLbl.style.color = new StyleColor(new Color(1f, 0.7f, 0.7f));
+                    blockLbl.style.flexGrow = 1;
+                    blockLbl.style.whiteSpace = WhiteSpace.Normal;
+                    blockBox.Add(blockLbl);
+
+                    if (!string.IsNullOrEmpty(unblockStepId))
+                    {
+                        var jumpBtn = CloudSaveUIStyle.CreateButton("🔍 Ir para Passo", "cs-btn-secondary", () =>
+                        {
+                            SwitchToChecklistAndExpand(unblockStepId);
+                        });
+                        jumpBtn.style.marginLeft = 6;
+                        blockBox.Add(jumpBtn);
+                    }
+
+                    body.Add(blockBox);
+                }
+            }
 
             var c = eval.Definition.Copy;
             AddStepProp(body, "📌 O que é:", c.WhatIsThis);
@@ -530,7 +1083,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
             if (eval.Definition.HasRuntimeValidator && eval.State != StepState.Blocked)
             {
                 var runBtn = CloudSaveUIStyle.CreateButton(
-                    eval.Runtime == RuntimeVerificationStatus.Passed ? "Run Validation Again" : "Run Validation",
+                    eval.Runtime == RuntimeVerificationStatus.Passed ? "Testar Novamente" : "Testar Validação",
                     "cs-btn-primary",
                     () => RunValidation(eval)
                 );
@@ -540,7 +1093,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
 
             if (eval.Definition.Id == SetupRegistry.Ids.ComplianceDeletionUi)
             {
-                var genBtn = CloudSaveUIStyle.CreateButton("📦 Generate UI Prefab", "cs-btn-primary", () =>
+                var genBtn = CloudSaveUIStyle.CreateButton("📦 Gerar UI Prefab", "cs-btn-primary", () =>
                 {
                     CloudSaveUIPrefabGenerator.GenerateAccountDeletionUI();
                     RecomputeDiagnostics();
@@ -549,7 +1102,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 genBtn.style.marginRight = 6;
                 actionToolbar.Add(genBtn);
 
-                var addSceneBtn = CloudSaveUIStyle.CreateButton("📌 Add to Selected / Scene", "cs-btn-secondary", () =>
+                var addSceneBtn = CloudSaveUIStyle.CreateButton("📌 Inserir na Cena", "cs-btn-secondary", () =>
                 {
                     CloudSaveUIPrefabGenerator.CreateAccountDeletionUIInScene();
                 });
@@ -557,11 +1110,11 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 actionToolbar.Add(addSceneBtn);
             }
 
-            var copyAiBtn = CloudSaveUIStyle.CreateButton("🤖 Copy AI Prompt", "cs-btn-secondary", () =>
+            var copyAiBtn = CloudSaveUIStyle.CreateButton("🤖 Copiar Prompt AI", "cs-btn-secondary", () =>
             {
                 EditorGUIUtility.systemCopyBuffer = AiPromptFor(eval);
                 Debug.Log($"[CloudSave] AI Prompt copied for {eval.Definition.Title}");
-                EditorUtility.DisplayDialog("Cloud Save", "AI Prompt copied to clipboard!", "OK");
+                EditorUtility.DisplayDialog("Cloud Save", "Prompt AI copiado para a área de transferência!", "OK");
             });
             copyAiBtn.style.marginRight = 6;
             actionToolbar.Add(copyAiBtn);
@@ -588,13 +1141,12 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 toggleIcon.style.color = new StyleColor(expanded ? CloudSaveUIStyle.ColAccent : CloudSaveUIStyle.ColTextMuted);
                 titleLbl.style.color = new StyleColor(expanded ? Color.white : new Color(0.90f, 0.92f, 0.96f));
 
-                // Distinct styling so the user never gets lost when a card is expanded
                 card.style.backgroundColor = new StyleColor(expanded ? new Color(0.18f, 0.22f, 0.30f) : new Color(0.14f, 0.16f, 0.22f));
                 card.style.borderTopColor = new StyleColor(expanded ? new Color(0.35f, 0.44f, 0.60f, 0.65f) : CloudSaveUIStyle.ColCardBorder);
                 card.style.borderBottomColor = new StyleColor(expanded ? new Color(0.35f, 0.44f, 0.60f, 0.65f) : CloudSaveUIStyle.ColCardBorder);
                 card.style.borderRightColor = new StyleColor(expanded ? new Color(0.35f, 0.44f, 0.60f, 0.65f) : CloudSaveUIStyle.ColCardBorder);
                 card.style.borderLeftColor = new StyleColor(expanded ? CloudSaveUIStyle.ColAccent : stateColor);
-                card.style.borderLeftWidth = expanded ? 4.5f : 3;
+                card.style.borderLeftWidth = expanded ? 4.5f : 3.5f;
 
                 body.style.display = expanded ? DisplayStyle.Flex : DisplayStyle.None;
             }
@@ -621,6 +1173,108 @@ namespace Wagenheimer.CloudSave.Editor.UI
             });
 
             return card;
+        }
+
+        private static string GetCategoryDisplayName(StepCategory cat) => cat switch
+        {
+            StepCategory.Prerequisites => "1. Conexão Unity Gaming Services (UGS)",
+            StepCategory.Services => "2. Pacotes & Serviços UGS",
+            StepCategory.StartupCode => "3. Código de Inicialização & Sincronia",
+            StepCategory.SaveData => "4. Estrutura dos Dados de Salvar",
+            StepCategory.Ui => "5. Interfaces de Usuário Prontas (Prefabs)",
+            StepCategory.Providers => "6. Provedores Mobile (Google Play & Game Center)",
+            StepCategory.StoreCompliance => "7. Conformidade das Lojas (Apple 5.1.1v & Google Play)",
+            StepCategory.Migration => "8. Migração de Dados Legados",
+            StepCategory.Verification => "9. Testes de Validação em Tempo Real",
+            _ => cat.ToString()
+        };
+
+        private static (string statusText, string badgeClass, Color color) ComputePillarStatus(IEnumerable<StepEvaluation> evals)
+        {
+            var list = evals.Where(e => e.State != StepState.NotApplicable).ToList();
+            if (list.Count == 0)
+                return ("N/A", "cs-badge-neutral", CloudSaveUIStyle.ColTextMuted);
+
+            bool hasFailed = list.Any(e => e.State == StepState.Failed);
+            bool hasNotConfigured = list.Any(e => e.Definition.Obligation == Obligation.Required && (e.State == StepState.NotConfigured || e.State == StepState.Blocked));
+            bool hasPending = list.Any(e => e.State == StepState.NeedsAttention || e.State == StepState.NeedsValidation);
+
+            if (hasFailed || hasNotConfigured)
+                return ("PENDENTE ⚠️", "cs-badge-fail", CloudSaveUIStyle.ColRed);
+            if (hasPending)
+                return ("ATENÇÃO ⚠️", "cs-badge-warn", CloudSaveUIStyle.ColAmber);
+
+            return ("PRONTO ✔", "cs-badge-pass", CloudSaveUIStyle.ColGreen);
+        }
+
+        private bool IsStepReady(string stepId)
+        {
+            if (_snapshot == null) return false;
+            var s = _snapshot.Steps.FirstOrDefault(x => x.Definition.Id == stepId);
+            if (s == null) return false;
+            return s.State == StepState.Validated ||
+                   s.State == StepState.ManuallyConfirmed ||
+                   s.Configuration == ConfigurationStatus.Present;
+        }
+
+        private void SwitchToChecklistAndExpand(string stepId)
+        {
+            _diagViewMode = DiagnosticsViewMode.FullChecklist;
+            _stepFilter = StepFilter.All;
+            _expandedSteps.Clear();
+            if (!string.IsNullOrEmpty(stepId))
+            {
+                _expandedSteps.Add(stepId);
+            }
+            RenderActiveTab();
+        }
+
+        private static void CopyControllerSnippet()
+        {
+            const string snippet = @"// Exemplo de Inicialização com CloudSaveController (Recomendado)
+using Wagenheimer.CloudSave;
+using UnityEngine;
+
+public class MyGameSaveManager : MonoBehaviour
+{
+    private CloudSaveController _cloudSave;
+
+    private async void Start()
+    {
+        _cloudSave = CloudSaveController.Create(new CloudSaveOptions
+        {
+            SaveKey = ""GameSaveSlot"",
+            Serialize = () => System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(mySaveData)),
+            Deserialize = bytes =>
+            {
+                var json = System.Text.Encoding.UTF8.GetString(bytes);
+                mySaveData = JsonUtility.FromJson<MySaveData>(json);
+                SaveToLocalDisk();
+            },
+            OnCloudApplied = () => RefreshUI()
+        });
+
+        await _cloudSave.StartAsync();
+    }
+
+    public void OnLocalSaveChanged()
+    {
+        SaveToLocalDisk();
+        _cloudSave?.MarkDirty();
+    }
+
+    private void OnApplicationPause(bool pauseStatus)
+    {
+        if (pauseStatus) _ = _cloudSave?.FlushAsync();
+    }
+
+    private void OnApplicationQuit()
+    {
+        _ = _cloudSave?.FlushAsync();
+    }
+}";
+            EditorGUIUtility.systemCopyBuffer = snippet;
+            EditorUtility.DisplayDialog("Cloud Save", "Código de integração (CloudSaveController) copiado para a área de transferência!", "OK");
         }
 
         private static void AddStepProp(VisualElement container, string label, string text)
@@ -972,14 +1626,47 @@ namespace Wagenheimer.CloudSave.Editor.UI
             // Code Snippets Card
             var codeCard = CloudSaveUIStyle.CreateCard("Runtime API Code Snippets");
 
-            AddCodeSnippet(codeCard, "Save Game Data to Cloud",
-                "byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);\nawait Wagenheimer.CloudSave.CloudSync.SaveAsync(bytes, DateTimeOffset.UtcNow.ToUnixTimeSeconds());");
+            AddCodeSnippet(codeCard, "1. Recommended: CloudSaveController Lifecycle",
+                "// 1. Initialize once at game startup:\n" +
+                "var cloud = CloudSaveController.Create(new CloudSaveOptions\n" +
+                "{\n" +
+                "    SaveKey = \"Slot1\",\n" +
+                "    Serialize = () => System.Text.Encoding.UTF8.GetBytes(JsonUtility.ToJson(mySaveData)),\n" +
+                "    Deserialize = bytes => { mySaveData = JsonUtility.FromJson<SaveData>(System.Text.Encoding.UTF8.GetString(bytes)); LocalSaveToDisk(); },\n" +
+                "    OnCloudApplied = () => RefreshUI()\n" +
+                "});\n" +
+                "await cloud.StartAsync();\n\n" +
+                "// 2. Notify after any local save:\n" +
+                "cloud.MarkDirty();\n\n" +
+                "// 3. Flush on pause / quit:\n" +
+                "private void OnApplicationPause(bool pause) { if (pause) _ = cloud.FlushAsync(); }");
 
-            AddCodeSnippet(codeCard, "Load Game Data from Cloud",
-                "var (bytes, ts) = await Wagenheimer.CloudSave.CloudSync.LoadRawCloudDataAsync();\nif (bytes != null) string json = System.Text.Encoding.UTF8.GetString(bytes);");
+            AddCodeSnippet(codeCard, "2. Store Compliance: Account Deletion (Apple 5.1.1(v) & Google Play)",
+                "// Apple and Google Play REQUIRE an in-app account deletion button when auth/cloud is offered.\n" +
+                "// When the player confirms deletion in UI:\n" +
+                "bool success = await Wagenheimer.CloudSave.CloudAuth.DeleteAccountAsync();\n" +
+                "if (success)\n" +
+                "{\n" +
+                "    // Crucial: Clear local save data / profiles from disk so the player starts fresh\n" +
+                "    LocalSaveSystem.ClearAllProfiles();\n" +
+                "    // Return to main menu or character creation\n" +
+                "    SceneManager.LoadScene(\"MainMenu\");\n" +
+                "}");
 
-            AddCodeSnippet(codeCard, "Listen to Sync Status Events",
-                "Wagenheimer.CloudSave.CloudSync.OnSyncCompleted += result => {\n    Debug.Log($\"Cloud Sync Result: {result}\");\n};");
+            AddCodeSnippet(codeCard, "3. Mobile Game Services Linking (Google Play Games & Game Center)",
+                "// Upgrade anonymous player to native Google Play Games or Apple Game Center:\n" +
+                "// Note: In Unity Cloud Dashboard, pick 'Google Play Games' or 'Apple Game Center' (NOT Web OAuth).\n" +
+                "#if UNITY_ANDROID\n" +
+                "await Wagenheimer.CloudSave.CloudAuth.LinkGooglePlayGamesAsync(serverAuthCode);\n" +
+                "#elif UNITY_IOS\n" +
+                "await Wagenheimer.CloudSave.CloudAuth.LinkAppleGameCenterAsync(signature, salt, timestamp, publicKeyUrl);\n" +
+                "#endif");
+
+            AddCodeSnippet(codeCard, "4. Manual Low-Level Sync (CloudSync API)",
+                "byte[] bytes = System.Text.Encoding.UTF8.GetBytes(json);\n" +
+                "await Wagenheimer.CloudSave.CloudSync.SaveAsync(bytes, DateTimeOffset.UtcNow.ToUnixTimeSeconds());\n\n" +
+                "var (cloudBytes, ts) = await Wagenheimer.CloudSave.CloudSync.LoadRawCloudDataAsync();\n" +
+                "if (cloudBytes != null) string json = System.Text.Encoding.UTF8.GetString(cloudBytes);");
 
             scroll.Add(codeCard);
 

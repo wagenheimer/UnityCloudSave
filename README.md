@@ -579,13 +579,29 @@ if (result.Status == CloudMigrationStatus.Migrated || result.Status == CloudMigr
 
 ---
 
-## Testing in the Editor (v4.1.1+)
+## Master Dashboard & Setup Checker (v4.30+)
 
-The package ships a **Test Window** that lets you simulate sync operations, fire events, and visualise all UI components without needing actual Unity Gaming Services credentials or a device build.
+The package includes a comprehensive UI Toolkit **Master Dashboard** designed to eliminate confusion and guide you through the 4 sequential pillars of cloud save integration:
 
-### Open the Test Window
+**Tools → Wagenheimer → Cloud Save → Dashboard...**
 
-**Tools → Wagenheimer → Cloud Save → Test Window**
+### The 4 Integration Pillars
+1. **Pillar 1: Unity Cloud Services (UGS)**: Verifies project linking, organizations, Cloud Save and Authentication packages, and runs live anonymous sign-in validation.
+2. **Pillar 2: Game Code & Persistence**: Detects whether you are using the high-level `CloudSaveController` (recommended) or low-level `CloudSync` methods, and verifies your save data structures (`[Serializable]`).
+3. **Pillar 3: Mobile Providers (Cross-Device)**: Configures native Game Services (Google Play Games & Apple Game Center) for 100% silent, frictionless login without web OAuth email screens.
+4. **Pillar 4: Store Compliance (Apple & Google Play)**: Validates required in-app account deletion (`CloudAuth.DeleteAccountAsync()`, Apple Guideline 5.1.1(v) & Google Play Data Safety) and Privacy URLs, with 1-click UI prefab generation.
+
+### Dashboard Features
+- **Pillars Overview vs. Full Technical Checklist**: Switch instantly between high-level architectural health and granular code inspection.
+- **Filter Pills**: Filter cards by `Todos`, `⚠️ Pendências & Atenção`, `🚨 Obrigatórios`, or `✔ Validados`.
+- **Blocked Step Diagnostics**: If a step is blocked, the dashboard identifies the exact upstream dependency and provides a 1-click jump button.
+- **1-Click Actions**: Generate account deletion UI prefabs, insert the in-game debug overlay into your active scene, run runtime verifications, or copy diagnostic prompt reports for AI pair programming.
+
+---
+
+## Live QA & Cloud Tester
+
+The package also includes an interactive **Live QA & Cloud Tester** tab within the Dashboard (or accessible directly via **Tools → Wagenheimer → Cloud Save → Cloud Tester...**) that lets you inspect live authentication status and test real read/write operations against Unity Cloud Save in Play Mode.
 
 ### What you can test
 
