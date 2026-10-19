@@ -322,6 +322,11 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 CloudSaveDebugOverlayEditor.AddDebugOverlayToScene();
             }));
 
+            toolbar.Add(CloudSaveUIStyle.CreateButton("Generate Delete Account Prefab", "cs-btn-secondary", () =>
+            {
+                CloudSaveUIPrefabGenerator.GenerateAccountDeletionUI();
+            }));
+
             toolbar.Add(CloudSaveUIStyle.CreateButton("Copy Diagnostic Report / AI Prompt", "cs-btn-secondary", () =>
             {
                 CopyDiagnosticPrompt();
@@ -535,6 +540,25 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 );
                 runBtn.style.marginRight = 6;
                 actionToolbar.Add(runBtn);
+            }
+
+            if (eval.Definition.Id == Ids.ComplianceDeletionUi)
+            {
+                var genBtn = CloudSaveUIStyle.CreateButton("📦 Generate UI Prefab", "cs-btn-primary", () =>
+                {
+                    CloudSaveUIPrefabGenerator.GenerateAccountDeletionUI();
+                    RecomputeDiagnostics();
+                    RenderActiveTab();
+                });
+                genBtn.style.marginRight = 6;
+                actionToolbar.Add(genBtn);
+
+                var addSceneBtn = CloudSaveUIStyle.CreateButton("📌 Add to Selected / Scene", "cs-btn-secondary", () =>
+                {
+                    CloudSaveUIPrefabGenerator.CreateAccountDeletionUIInScene();
+                });
+                addSceneBtn.style.marginRight = 6;
+                actionToolbar.Add(addSceneBtn);
             }
 
             var copyAiBtn = CloudSaveUIStyle.CreateButton("🤖 Copy AI Prompt", "cs-btn-secondary", () =>

@@ -116,7 +116,7 @@ namespace Wagenheimer.CloudSave.Editor.Setup
                     "CloudAuth.DeleteAccountAsync() call found",
                     "Apple 5.1.1(v) & Google Play require in-app account deletion when sign-in is offered: CloudAuth.DeleteAccountAsync()."),
                 [Ids.ComplianceDeletionUi] = new CodePresenceDetector(
-                    @"(?i)delete\s*account|deleteconfirmation|accountdeleted", "compliance.deletionui",
+                    @"(?i)delete\s*account|deleteconfirmation|accountdeleted|AccountDeletionUI", "compliance.deletionui",
                     "Account-deletion UI referenced", "Provide a clear 'Delete account' button with a confirmation step."),
                 [Ids.ComplianceUrls] = new CodePresenceDetector(
                     @"(?i)Application\.OpenURL\([^)]*(privacy|policy|terms|delete)", "compliance.urls",

@@ -9,6 +9,7 @@ namespace Wagenheimer.CloudSave.Editor
         const string CloudSaveUIPath  = "Assets/Resources/CloudSaveUI.prefab";
         const string SyncStatusUIPath = "Assets/Resources/SyncStatusUI.prefab";
         const string CloudAuthUIPath  = "Assets/Resources/CloudAuthUI.prefab";
+        const string AccountDeletionUIPath = "Assets/Resources/AccountDeletionUI.prefab";
 
         [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Cloud Save UI", priority = 21)]
         public static void GenerateCloudSaveUI()
@@ -43,12 +44,53 @@ namespace Wagenheimer.CloudSave.Editor
             SavePrefab(go, path);
         }
 
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Account Deletion UI", priority = 24)]
+        public static void GenerateAccountDeletionUI()
+        {
+            var path = AccountDeletionUIPath;
+            DeletePrefab(path);
+            var go = new GameObject("AccountDeletionUI", typeof(RectTransform));
+            var ui = go.AddComponent<AccountDeletionUI>();
+            ui.BuildDefaultUI();
+            SavePrefab(go, path);
+        }
+
+        [MenuItem("GameObject/UI/Cloud Save/Account Deletion UI", false, 10)]
+        public static void CreateAccountDeletionUIInScene(MenuCommand menuCommand = null)
+        {
+            GameObject parent = null;
+            if (menuCommand != null && menuCommand.context is GameObject cmdGo)
+                parent = cmdGo;
+            else if (Selection.activeTransform != null)
+                parent = Selection.activeTransform.gameObject;
+
+            var go = new GameObject("AccountDeletionUI", typeof(RectTransform));
+            if (parent != null)
+            {
+                go.transform.SetParent(parent.transform, false);
+            }
+            else
+            {
+                var canvas = Object.FindObjectOfType<Canvas>();
+                if (canvas != null)
+                    go.transform.SetParent(canvas.transform, false);
+            }
+
+            var ui = go.AddComponent<AccountDeletionUI>();
+            ui.BuildDefaultUI();
+
+            Undo.RegisterCreatedObjectUndo(go, "Create Account Deletion UI");
+            Selection.activeGameObject = go;
+            Debug.Log("[CloudSave] Account Deletion UI created in scene/prefab. Customize it in the Inspector!");
+        }
+
         [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/All", priority = 20)]
         public static void GenerateAll()
         {
             GenerateCloudSaveUI();
             GenerateSyncStatusUI();
             GenerateCloudAuthUI();
+            GenerateAccountDeletionUI();
             Debug.Log("[CloudSave] All UI prefabs generated");
         }
 
