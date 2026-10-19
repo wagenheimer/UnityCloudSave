@@ -1074,6 +1074,49 @@ namespace Wagenheimer.CloudSave.Editor.UI
                 }
             }
 
+            // Validation result feedback banner
+            if (eval.LastRecord != null && !string.IsNullOrEmpty(eval.LastRecord.Message))
+            {
+                var recordBox = new VisualElement();
+                bool isPass = eval.LastRecord.Outcome == nameof(ValidationOutcome.Passed);
+                recordBox.style.backgroundColor = new StyleColor(isPass ? new Color(0.10f, 0.73f, 0.51f, 0.12f) : new Color(0.94f, 0.27f, 0.27f, 0.15f));
+                recordBox.style.borderLeftColor = new StyleColor(isPass ? CloudSaveUIStyle.ColGreen : CloudSaveUIStyle.ColRed);
+                recordBox.style.borderLeftWidth = 3.5f;
+                recordBox.style.SetRadius(4);
+                recordBox.style.paddingLeft = 10;
+                recordBox.style.paddingRight = 10;
+                recordBox.style.paddingTop = 6;
+                recordBox.style.paddingBottom = 6;
+                recordBox.style.marginTop = 6;
+                recordBox.style.marginBottom = 6;
+
+                var recordTitle = new Label(isPass ? "✔ Último Teste Runtime (Sucesso):" : "✗ Último Teste Runtime (Falha):");
+                recordTitle.style.fontSize = 11;
+                recordTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
+                recordTitle.style.color = new StyleColor(isPass ? CloudSaveUIStyle.ColGreen : CloudSaveUIStyle.ColRed);
+                recordTitle.style.marginBottom = 2;
+                recordBox.Add(recordTitle);
+
+                var recordMsg = new Label(eval.LastRecord.Message);
+                recordMsg.style.fontSize = 10.5f;
+                recordMsg.style.color = new StyleColor(CloudSaveUIStyle.ColTextWhite);
+                recordMsg.style.whiteSpace = WhiteSpace.Normal;
+                recordBox.Add(recordMsg);
+
+                if (!isPass && eval.LastRecord.Message.Contains("Play Mode"))
+                {
+                    var playHint = new Label("💡 Solução: O SDK da Unity Services exige o Play Mode para conectar à nuvem. Dê Play (▶️) no Unity e clique em 'Testar Novamente'.");
+                    playHint.style.fontSize = 10.5f;
+                    playHint.style.unityFontStyleAndWeight = FontStyle.Bold;
+                    playHint.style.color = new StyleColor(CloudSaveUIStyle.ColAmber);
+                    playHint.style.marginTop = 4;
+                    playHint.style.whiteSpace = WhiteSpace.Normal;
+                    recordBox.Add(playHint);
+                }
+
+                body.Add(recordBox);
+            }
+
             // Action controls
             var actionToolbar = new VisualElement();
             actionToolbar.style.flexDirection = FlexDirection.Row;
@@ -1316,6 +1359,22 @@ public class MyGameSaveManager : MonoBehaviour
         {
             var testCase = _registry.CreateCaseFor(e.Definition.Id);
             if (testCase == null) return;
+
+            if (!Application.isPlaying)
+            {
+                bool startPlay = EditorUtility.DisplayDialog(
+                    "Play Mode Necessário para Teste",
+                    "O SDK da Unity Services (UGS) só permite conectar aos servidores e testar os provedores durante o Play Mode.\n\n" +
+                    "Deseja iniciar o Play Mode agora para executar a validação?",
+                    "Sim, dar Play ▶️",
+                    "Cancelar"
+                );
+                if (startPlay)
+                {
+                    EditorApplication.isPlaying = true;
+                }
+                return;
+            }
 
             _isBusy = true;
             RenderActiveTab();
