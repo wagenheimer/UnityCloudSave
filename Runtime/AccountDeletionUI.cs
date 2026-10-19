@@ -202,7 +202,7 @@ namespace Wagenheimer.CloudSave
             _cardRoot = card;
 
             // Warning Icon
-            var iconRt = UiIcons.Build(card, UiIcon.Error, new Color(0.9f, 0.3f, 0.3f), 48f);
+            var iconRt = UiIcons.Build(card, UiIcon.Warn, new Color(0.95f, 0.35f, 0.35f), 48f);
             iconRt.anchorMin = iconRt.anchorMax = new Vector2(0.5f, 0.84f);
             iconRt.anchoredPosition = Vector2.zero;
 
@@ -253,12 +253,12 @@ namespace Wagenheimer.CloudSave
             confTxtRt.anchorMin = Vector2.zero;
             confTxtRt.anchorMax = Vector2.one;
             confTxtRt.offsetMin = confTxtRt.offsetMax = Vector2.zero;
-            _confirmDeleteText = confTxtGo.AddComponent<TextMeshProUGUI>();
-            _confirmDeleteText.text = CloudSaveLocale.BtnDeleteAccount();
-            _confirmDeleteText.color = Color.white;
-            _confirmDeleteText.fontSize = 15;
-            _confirmDeleteText.fontStyle = FontStyles.Bold;
-            _confirmDeleteText.alignment = TextAlignmentOptions.Center;
+            _confirmButtonText = confTxtGo.AddComponent<TextMeshProUGUI>();
+            _confirmButtonText.text = CloudSaveLocale.BtnDeleteAccount();
+            _confirmButtonText.color = Color.white;
+            _confirmButtonText.fontSize = 15;
+            _confirmButtonText.fontStyle = FontStyles.Bold;
+            _confirmButtonText.alignment = TextAlignmentOptions.Center;
 
             // Cancel Button (Dark Blue/Gray)
             var btnCancelGo = new GameObject("BtnCancel", typeof(RectTransform));
@@ -280,12 +280,12 @@ namespace Wagenheimer.CloudSave
             cancelTxtRt.anchorMin = Vector2.zero;
             cancelTxtRt.anchorMax = Vector2.one;
             cancelTxtRt.offsetMin = cancelTxtRt.offsetMax = Vector2.zero;
-            _cancelText = cancelTxtGo.AddComponent<TextMeshProUGUI>();
-            _cancelText.text = CloudSaveLocale.BtnCancel();
-            _cancelText.color = Color.white;
-            _cancelText.fontSize = 15;
-            _cancelText.fontStyle = FontStyles.Bold;
-            _cancelText.alignment = TextAlignmentOptions.Center;
+            _cancelButtonText = cancelTxtGo.AddComponent<TextMeshProUGUI>();
+            _cancelButtonText.text = CloudSaveLocale.BtnCancel();
+            _cancelButtonText.color = Color.white;
+            _cancelButtonText.fontSize = 15;
+            _cancelButtonText.fontStyle = FontStyles.Bold;
+            _cancelButtonText.alignment = TextAlignmentOptions.Center;
 
             modal.SetActive(false);
         }
@@ -309,9 +309,9 @@ namespace Wagenheimer.CloudSave
                     _titleText = card.Find("Title")?.GetComponent<TextMeshProUGUI>();
                     _warningText = card.Find("Description")?.GetComponent<TextMeshProUGUI>();
                     _confirmButton = card.Find("BtnConfirmDelete")?.GetComponent<Button>();
-                    _confirmDeleteText = _confirmButton?.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
+                    _confirmButtonText = _confirmButton?.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
                     _cancelButton = card.Find("BtnCancel")?.GetComponent<Button>();
-                    _cancelText = _cancelButton?.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
+                    _cancelButtonText = _cancelButton?.transform.Find("Label")?.GetComponent<TextMeshProUGUI>();
                 }
             }
             UnityEditor.EditorUtility.SetDirty(this);
