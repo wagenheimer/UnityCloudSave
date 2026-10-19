@@ -49,19 +49,14 @@ namespace Wagenheimer.CloudSave.Editor.UI
         private string _testValue = "{\"coins\":100,\"level\":5}";
         private string _testConsoleLog = "";
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Dashboard...", priority = 0)]
+        // Main Entry point in Tools/Wagenheimer (Priority 50 places it in its own clean separated block)
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Dashboard...", priority = 50)]
         public static void OpenDashboard()
         {
             Open(Tab.Diagnostics);
         }
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup & Verification...", priority = 10)]
-        public static void OpenSetup()
-        {
-            Open(Tab.Diagnostics);
-        }
-
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Cloud Tester...", priority = 11)]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Cloud Tester...", priority = 51)]
         public static void OpenTester()
         {
             Open(Tab.LiveQA);
@@ -495,10 +490,11 @@ namespace Wagenheimer.CloudSave.Editor.UI
             body.style.borderTopColor = new StyleColor(new Color(1f, 1f, 1f, 0.08f));
 
             var c = eval.Definition.Copy;
-            AddStepProp(body, "What is this?", c.WhatIsThis);
-            AddStepProp(body, "Why needed?", c.WhyNeeded);
-            AddStepProp(body, "What you do:", c.WhatYouDo);
-            AddStepProp(body, "What we verify:", c.WhatWeAutoVerify);
+            AddStepProp(body, "📌 O que é:", c.WhatIsThis);
+            AddStepProp(body, "💡 Por que é necessário:", c.WhyNeeded);
+            AddStepProp(body, "🛠️ O que fazer:", c.WhatYouDo);
+            AddStepProp(body, "🧪 Como testar / validar:", !string.IsNullOrEmpty(c.HowToTest) ? c.HowToTest : c.WhatWeAutoVerify);
+            AddStepProp(body, "🎯 Resultado esperado:", c.ExpectedResult);
 
             // Config found / missing
             if (eval.ConfigFound.Count > 0)
@@ -631,18 +627,24 @@ namespace Wagenheimer.CloudSave.Editor.UI
         {
             if (string.IsNullOrEmpty(text)) return;
             var row = new VisualElement();
-            row.style.marginBottom = 4;
+            row.style.marginBottom = 6;
+            row.style.paddingLeft = 8;
+            row.style.paddingRight = 8;
+            row.style.paddingTop = 4;
+            row.style.paddingBottom = 4;
+            row.style.backgroundColor = new StyleColor(new Color(0f, 0f, 0f, 0.15f));
+            row.style.SetRadius(4);
 
             var lbl = new Label(label);
             lbl.style.fontSize = 11;
             lbl.style.unityFontStyleAndWeight = FontStyle.Bold;
-            lbl.style.color = new StyleColor(CloudSaveUIStyle.ColTextMuted);
+            lbl.style.color = new StyleColor(new Color(0.40f, 0.70f, 1f)); // Soft blue highlight for prop labels
+            lbl.style.marginBottom = 2;
 
             var val = new Label(text);
             val.style.fontSize = 11;
-            val.style.color = new StyleColor(CloudSaveUIStyle.ColTextWhite);
+            val.style.color = new StyleColor(new Color(0.92f, 0.94f, 0.98f));
             val.style.whiteSpace = WhiteSpace.Normal;
-            val.style.marginLeft = 4;
 
             row.Add(lbl);
             row.Add(val);
@@ -897,18 +899,19 @@ namespace Wagenheimer.CloudSave.Editor.UI
             prefToolbar.style.flexDirection = FlexDirection.Row;
             prefToolbar.style.marginTop = 8;
 
-            prefToolbar.Add(CloudSaveUIStyle.CreateButton("Generate / Update All Prefabs", "cs-btn-primary", () =>
+            prefToolbar.Add(CloudSaveUIStyle.CreateButton("📦 Generate All UI Prefabs", "cs-btn-primary", () =>
             {
                 CloudSaveUIPrefabGenerator.GenerateAll();
                 RenderActiveTab();
             }));
 
-            prefToolbar.Add(CloudSaveUIStyle.CreateButton("Open Dedicated Test Window", "cs-btn-secondary", () =>
+            prefToolbar.Add(CloudSaveUIStyle.CreateButton("🗑️ Generate Account Deletion UI", "cs-btn-secondary", () =>
             {
-                EditorApplication.ExecuteMenuItem("Tools/Wagenheimer/Cloud Save/Cloud Tester (Legacy)...");
+                CloudSaveUIPrefabGenerator.GenerateAccountDeletionUI();
+                RenderActiveTab();
             }));
 
-            prefToolbar.Add(CloudSaveUIStyle.CreateButton("Add In-Game Debug Overlay to Scene", "cs-btn-primary", () =>
+            prefToolbar.Add(CloudSaveUIStyle.CreateButton("🛠️ Add In-Game Debug Overlay to Scene", "cs-btn-secondary", () =>
             {
                 CloudSaveDebugOverlayEditor.AddDebugOverlayToScene();
             }));

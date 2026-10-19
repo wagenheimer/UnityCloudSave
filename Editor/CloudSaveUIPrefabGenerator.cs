@@ -11,7 +11,6 @@ namespace Wagenheimer.CloudSave.Editor
         const string CloudAuthUIPath  = "Assets/Resources/CloudAuthUI.prefab";
         const string AccountDeletionUIPath = "Assets/Resources/AccountDeletionUI.prefab";
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Cloud Save UI", priority = 21)]
         public static void GenerateCloudSaveUI()
         {
             var path = CloudSaveUIPath;
@@ -22,7 +21,6 @@ namespace Wagenheimer.CloudSave.Editor
             SavePrefab(go, path);
         }
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Sync Status UI", priority = 22)]
         public static void GenerateSyncStatusUI()
         {
             var path = SyncStatusUIPath;
@@ -33,7 +31,6 @@ namespace Wagenheimer.CloudSave.Editor
             SavePrefab(go, path);
         }
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Cloud Auth UI", priority = 23)]
         public static void GenerateCloudAuthUI()
         {
             var path = CloudAuthUIPath;
@@ -44,7 +41,6 @@ namespace Wagenheimer.CloudSave.Editor
             SavePrefab(go, path);
         }
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/Account Deletion UI", priority = 24)]
         public static void GenerateAccountDeletionUI()
         {
             var path = AccountDeletionUIPath;
@@ -84,7 +80,6 @@ namespace Wagenheimer.CloudSave.Editor
             Debug.Log("[CloudSave] Account Deletion UI created in scene/prefab. Customize it in the Inspector!");
         }
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup UI Prefabs/All", priority = 20)]
         public static void GenerateAll()
         {
             GenerateCloudSaveUI();

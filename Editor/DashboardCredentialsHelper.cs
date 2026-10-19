@@ -25,7 +25,7 @@ namespace Wagenheimer.CloudSave.Editor
             public string ServiceAccountsUrl;
         }
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Dashboard Credentials Helper", priority = 10)]
+        // Credentials Helper — accessible via Hub or programmatic CLI
         public static void Open()
         {
             var window = GetWindow<DashboardCredentialsHelper>("UGS Credentials");
@@ -33,7 +33,6 @@ namespace Wagenheimer.CloudSave.Editor
             _cachedData = DetectCredentials();
         }
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Export Credentials (CLI)", priority = 11)]
         public static void ExportCredentialsMenuItem()
         {
             ExportCredentialsCli();

@@ -6,8 +6,8 @@ namespace Wagenheimer.CloudSave.Editor
 {
     public class CloudSaveTester : EditorWindow
     {
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Cloud Tester (Legacy)...", priority = 15)]
-        static void Open() => GetWindow<CloudSaveTester>("Cloud Save Test");
+        // Legacy IMGUI tester — replaced by CloudSaveHubWindow Tab.LiveQA
+        public static void Open() => GetWindow<CloudSaveTester>("Cloud Save Test");
 
         static System.Reflection.MethodInfo _setLoading;
         static System.Reflection.MethodInfo _handleSyncCompleted;

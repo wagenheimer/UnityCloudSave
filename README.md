@@ -258,6 +258,30 @@ The conflict dialog auto-dismisses after **30 seconds** (chooses cloud), prevent
 
 The overlay also responds to clicks — tapping outside the card dismisses the dialog.
 
+### `AccountDeletionUI`
+
+Complies with **Apple App Store Review Guideline 5.1.1(v)** and **Google Play Data Safety** requirements for in-app account deletion.
+
+| Member | Description |
+|---|---|
+| `BuildDefaultUI()` | Editor method to generate the default styled trigger button and confirmation modal. |
+| `OpenConfirmationModal()` | Opens the deletion safeguard popup. |
+| `CloseConfirmationModal()` | Closes the safeguard popup. |
+| `OnAccountDeleted` | `event Action` — fires when deletion completes on the backend. Ideal for wiping local profiles and redirecting to the main menu. |
+| `OnDeletionCancelled` | `event Action` — fires when the player backs out. |
+
+**How to generate & customize in Design-Time:**
+- Right-click in the Hierarchy: `GameObject > UI > Cloud Save > Account Deletion UI`.
+- In the Cloud Save Hub (`Tools > Wagenheimer > Cloud Save > Dashboard...`), click `📦 Generate All UI Prefabs` or `🗑️ Generate Account Deletion UI`.
+- Or right-click any Options component in the Inspector and choose `Generate Account Deletion UI (Design-Time)`.
+
+### `CloudSaveDebugOverlay`
+
+In-game diagnostic overlay built with modern UI Toolkit.
+- **Automatic:** Instantiates automatically in Unity Editor and Development Builds (`RuntimeInitializeLoadType.AfterSceneLoad`).
+- **Hot-key:** Toggle with `F6` or via the floating on-screen button.
+- **Features:** Inspect real-time UGS authentication, slot payloads, last-sync timestamps, test conflict resolution, and probe Unity Dashboard Identity Providers (GPGS / Game Center).
+
 ### `CloudSaveLocale`
 
 | Member | Description |

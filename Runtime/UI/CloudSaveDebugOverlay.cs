@@ -54,6 +54,15 @@ namespace Wagenheimer.CloudSave.UI
         [Range(0.75f, 3f)]
         public float desktopDefaultScale = 1f;
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        private static void AutoInitialize()
+        {
+            if (!Debug.isDebugBuild && !Application.isEditor)
+                return;
+
+            EnsureOverlay();
+        }
+
         /// <summary>
         /// Creates or returns the single runtime instance of CloudSaveDebugOverlay.
         /// </summary>
@@ -62,6 +71,7 @@ namespace Wagenheimer.CloudSave.UI
             var existing = FindFirstObjectByType<CloudSaveDebugOverlay>();
             if (existing != null) return existing;
             var go = new GameObject("[CloudSaveDebugOverlay]");
+            DontDestroyOnLoad(go);
             return go.AddComponent<CloudSaveDebugOverlay>();
         }
 

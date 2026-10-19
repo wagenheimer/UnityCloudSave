@@ -6,7 +6,7 @@ namespace Wagenheimer.CloudSave.Editor.UI
 {
     public static class CloudSaveDebugOverlayEditor
     {
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Add Cloud Save Debug Overlay to Scene", priority = 19)]
+        [MenuItem("Tools/Wagenheimer/Cloud Save/Add Cloud Save Debug Overlay to Scene", priority = 65)]
         public static void AddDebugOverlayToScene()
         {
             var existing = Object.FindFirstObjectByType<CloudSaveDebugOverlay>();

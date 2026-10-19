@@ -30,7 +30,7 @@ namespace Wagenheimer.CloudSave.Editor
         static readonly Color ColCodeText = new(0.65f, 0.85f, 0.45f);
         static readonly Color ColDim = new(0.55f, 0.55f, 0.60f);
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Audit Integration", priority = 16)]
+        // Obsolete IMGUI audit window — replaced by CloudSaveHubWindow Tab.Diagnostics
         static void Open()
         {
             var w = GetWindow<CloudSaveAudit>("Cloud Save Audit");
@@ -174,9 +174,9 @@ namespace Wagenheimer.CloudSave.Editor
         }
 
         /// <summary>
-        /// Menu item to run the audit and output the CLI report to console and Library file.
+        /// CLI entry point to run the audit and output the CLI report to console and Library file.
+        /// (Can be called headlessly or from tests/dashboard without menu pollution).
         /// </summary>
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Run Audit (CLI Report)", priority = 17)]
         public static void RunAuditMenuItem()
         {
             RunAuditFromCli();

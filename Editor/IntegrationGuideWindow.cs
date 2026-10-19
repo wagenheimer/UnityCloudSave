@@ -20,8 +20,8 @@ namespace Wagenheimer.CloudSave.Editor
         static readonly Color ColAccent = new(0.22f, 0.60f, 1.00f);
         static readonly Color ColCodeText = new(0.65f, 0.85f, 0.45f);
 
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Integration Guide...", priority = 20)]
-        static void Open()
+        // Subsumed by CloudSaveHubWindow Tab.Guide
+        public static void Open()
         {
             Wagenheimer.CloudSave.Editor.UI.CloudSaveHubWindow.Open(Wagenheimer.CloudSave.Editor.UI.CloudSaveHubWindow.Tab.Guide);
         }

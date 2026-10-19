@@ -14,7 +14,7 @@ namespace Wagenheimer.CloudSave.Editor.Setup
     /// </summary>
     public sealed class CloudSaveSetupWindow : EditorWindow
     {
-        [MenuItem("Tools/Wagenheimer/Cloud Save/Setup && Verification...", priority = 10)]
+        // Subsumed by CloudSaveHubWindow (Tools/Wagenheimer/Cloud Save/Dashboard...)
         public static void Open()
         {
             Wagenheimer.CloudSave.Editor.UI.CloudSaveHubWindow.Open(Wagenheimer.CloudSave.Editor.UI.CloudSaveHubWindow.Tab.Diagnostics);
