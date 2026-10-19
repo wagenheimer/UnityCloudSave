@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.31.1] - 2026-10-19
+
+### Fixed
+- show validation error message in step card and guard Play Mode requirement
+
 ## [4.31.0] - 2026-10-19
 
 ## [4.30.3] - 2026-10-19
