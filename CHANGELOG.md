@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.29.0] - 2026-10-19
+
+### Added
+- add one-call bidirectional SyncAsync
+
 ## [4.28.6] - 2026-10-08
 
 ### Fixed
