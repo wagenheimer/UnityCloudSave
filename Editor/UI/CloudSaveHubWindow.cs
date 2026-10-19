@@ -990,18 +990,31 @@ namespace Wagenheimer.CloudSave.Editor.UI
             body.style.borderTopColor = new StyleColor(new Color(1f, 1f, 1f, 0.08f));
 
             // Blocked Banner if blocked
-            if (eval.State == StepState.Blocked && eval.Definition.DependsOn != null)
+            if (eval.State == StepState.Blocked)
             {
                 string blockedReason = null;
-                string unblockStepId = null;
-                foreach (var dep in eval.Definition.DependsOn)
+                string unblockStepId = eval.BlockedByStepId;
+
+                if (!string.IsNullOrEmpty(unblockStepId) && _snapshot != null)
                 {
-                    var upstream = _snapshot.Steps.FirstOrDefault(s => s.Definition.Id == dep.StepId);
-                    if (upstream != null && upstream.State != StepState.Validated && upstream.State != StepState.ManuallyConfirmed)
+                    var upstream = _snapshot.Steps.FirstOrDefault(s => s.Definition.Id == unblockStepId);
+                    if (upstream != null)
                     {
                         blockedReason = $"Bloqueado por: \"{upstream.Definition.Title}\" ({upstream.State}). Conclua o passo anterior primeiro.";
-                        unblockStepId = upstream.Definition.Id;
-                        break;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(blockedReason) && eval.Definition.DependsOn != null && _snapshot != null)
+                {
+                    foreach (var dep in eval.Definition.DependsOn)
+                    {
+                        var upstream = _snapshot.Steps.FirstOrDefault(s => s.Definition.Id == dep.DependsOnId);
+                        if (upstream != null && upstream.State != StepState.Validated && upstream.State != StepState.ManuallyConfirmed)
+                        {
+                            blockedReason = $"Bloqueado por: \"{upstream.Definition.Title}\" ({upstream.State}). Conclua o passo anterior primeiro.";
+                            unblockStepId = upstream.Definition.Id;
+                            break;
+                        }
                     }
                 }
 
