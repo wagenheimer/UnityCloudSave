@@ -8,6 +8,7 @@ namespace Wagenheimer.CloudSave
         LocalNewer,
         CloudApplied,
         UserChoseLocal,
+        UploadedLocal,
         Offline,
         Error
     }

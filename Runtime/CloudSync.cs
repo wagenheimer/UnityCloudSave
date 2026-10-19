@@ -127,6 +127,87 @@ namespace Wagenheimer.CloudSave
         }
 
         /// <summary>
+        /// One-call bidirectional sync: authenticates, compares the timestamps and
+        ///  - UPLOADS <paramref name="localData"/> when the cloud has no save, is older, or the
+        ///    player chose to keep the local save;
+        ///  - APPLIES the cloud save (via <paramref name="onCloudNewer"/>) when the cloud is newer.
+        /// This is the recommended entry point: it leaves local and cloud consistent in one call,
+        /// so the game never has to inspect <see cref="LastResult"/> and upload by hand.
+        /// </summary>
+        /// <param name="localTimestamp">UTC ticks of the local save (0 when there is none yet).</param>
+        /// <param name="localData">Local save bytes to upload when local wins. Null/empty skips the upload.</param>
+        /// <param name="onCloudNewer">Invoked with the cloud bytes when the cloud save wins.</param>
+        /// <param name="conflictReason">Reason passed to <see cref="ConflictResolver"/>.</param>
+        public static async Task<CloudSyncResult> SyncAsync(long localTimestamp, byte[] localData,
+            Action<byte[]> onCloudNewer, CloudConflictReason conflictReason = CloudConflictReason.CloudIsNewer)
+        {
+            OnSyncStarted?.Invoke();
+            var result = CloudSyncResult.Error;
+            try
+            {
+                await CloudAuth.EnsureSignedInAsync();
+                if (!IsAvailable)
+                {
+                    result = CloudSyncResult.Offline;
+                }
+                else
+                {
+                    var (cloudBytes, cloudTs) = await LoadCloudDataAsync();
+                    bool canUpload = localData != null && localData.Length > 0;
+
+                    if (cloudBytes == null || cloudTs <= localTimestamp)
+                    {
+                        // Nothing in the cloud yet, or the local save is the most recent one.
+                        if (canUpload)
+                        {
+                            await SaveAsync(localData, localTimestamp);
+                            result = CloudSyncResult.UploadedLocal;
+                        }
+                        else
+                        {
+                            result = cloudBytes == null ? CloudSyncResult.NoCloudSave : CloudSyncResult.LocalNewer;
+                        }
+                    }
+                    else
+                    {
+                        var choice = CloudConflictChoice.UseCloud;
+                        if (ConflictResolver != null)
+                        {
+                            var data = new CloudConflictData(localTimestamp, cloudTs, cloudBytes, conflictReason);
+                            choice = await ConflictResolver(data);
+                        }
+
+                        if (choice == CloudConflictChoice.UseCloud)
+                        {
+                            onCloudNewer?.Invoke(cloudBytes);
+                            result = CloudSyncResult.CloudApplied;
+                        }
+                        else if (canUpload)
+                        {
+                            await SaveAsync(localData, localTimestamp);
+                            result = CloudSyncResult.UploadedLocal;
+                        }
+                        else
+                        {
+                            result = CloudSyncResult.UserChoseLocal;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudSync] Sync error: {e.Message}");
+                result = CloudSyncResult.Error;
+            }
+            finally
+            {
+                LastResult = result;
+                OnSyncCompleted?.Invoke(result);
+            }
+            return result;
+        }
+
+        /// <summary>
         /// Persists <paramref name="data"/> to the cloud with the given timestamp.
         /// No-op when offline. Safe to fire-and-forget.
         /// </summary>
