@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.30.0] - 2026-10-19
+
+### Added
+- platform link, auto-flush and pre-start MarkDirty queue
+
 ## [4.29.0] - 2026-10-19
 
 ### Added
