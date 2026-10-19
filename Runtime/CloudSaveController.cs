@@ -29,6 +29,10 @@ namespace Wagenheimer.CloudSave
         int _saveGeneration;
         bool _started;
         bool _installedSummaryProvider;
+        bool _dirtyBeforeStart;
+        bool _linkRequested;
+        bool _linking;
+        GameObject _lifecycleGo;
 
         string TimestampPrefKey => "ucs_ts_" + _o.SaveKey;
 
@@ -96,6 +100,30 @@ namespace Wagenheimer.CloudSave
                 await TryMigrateAsync();
 
             _started = true;
+
+            // The controller now owns the runtime concerns the game shouldn't have to wire.
+            if (_o.FlushOnApplicationPause) InstallLifecycle();
+
+            if (_dirtyBeforeStart)
+            {
+                _dirtyBeforeStart = false;
+                MarkDirty();
+            }
+
+            if (_linkRequested)
+            {
+                _linkRequested = false;
+                RequestPlatformLink();
+            }
+        }
+
+        void InstallLifecycle()
+        {
+            if (_lifecycleGo != null) return;
+
+            _lifecycleGo = new GameObject("CloudSaveLifecycle");
+            UnityEngine.Object.DontDestroyOnLoad(_lifecycleGo);
+            _lifecycleGo.AddComponent<CloudSaveLifecycle>().Controller = this;
         }
 
         async Task SyncAsync(CloudConflictReason reason)
@@ -137,6 +165,14 @@ namespace Wagenheimer.CloudSave
         /// </summary>
         public void MarkDirty()
         {
+            // Before StartAsync the cloud hasn't been compared yet. Uploading now would write a
+            // fresh timestamp and could mask a newer cloud save; queue it for right after the sync.
+            if (!_started)
+            {
+                _dirtyBeforeStart = true;
+                return;
+            }
+
             if (!_o.AutoSave) { _ = SaveNowAsync(); return; }
             int generation = ++_saveGeneration;
             _ = DebouncedSaveAsync(generation);
@@ -194,6 +230,71 @@ namespace Wagenheimer.CloudSave
             => CloudAuth.LinkAppleGameCenterAsync(publicKeyUrl, signature, salt, timestamp, teamPlayerId);
         public Task<CloudLinkResult> LinkFacebookAsync(string accessToken) => CloudAuth.LinkFacebookAsync(accessToken);
 
+        // ── Platform link (GPGS on Android, Game Center on iOS) ─────────────────
+
+        /// <summary>
+        /// Links the anonymous UGS account to the platform account, choosing the provider for the
+        /// current platform. Android needs <see cref="CloudSaveOptions.ServerAuthCodeProvider"/>; on
+        /// iOS the bundled Game Center plugin obtains the identity signature. Safe to call before
+        /// <see cref="StartAsync"/> (the request is queued for right after the first sync).
+        /// </summary>
+        public void RequestPlatformLink()
+        {
+            if (!_started)
+            {
+                _linkRequested = true;
+                return;
+            }
+
+            if (_linking || CloudAuth.IsLinked) return;
+            _linking = true;
+            _ = LinkPlatformAsync();
+        }
+
+        /// <summary>Awaitable form of <see cref="RequestPlatformLink"/>.</summary>
+        public async Task<CloudLinkResult> LinkPlatformAsync()
+        {
+            _linking = true;
+            try
+            {
+                if (CloudAuth.IsLinked)
+                    return CloudLinkResult.Ok(CloudLinkStatus.AlreadyLinked);
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+                if (_o.ServerAuthCodeProvider == null)
+                    return CloudLinkResult.Fail("CloudSaveOptions.ServerAuthCodeProvider is required on Android.");
+
+                var code = await _o.ServerAuthCodeProvider();
+                if (string.IsNullOrEmpty(code))
+                    return CloudLinkResult.Fail("The platform returned an empty server auth code.");
+
+                return await LinkGooglePlayGamesAsync(code);
+#elif UNITY_IOS && !UNITY_EDITOR
+                var signature = await GameCenterIdentity.RequestAsync();
+                if (signature == null)
+                    return CloudLinkResult.Fail("Game Center identity signature unavailable.");
+
+                if (!ulong.TryParse(signature.timestamp, out var timestamp))
+                    return CloudLinkResult.Fail("Invalid Game Center timestamp: " + signature.timestamp);
+
+                return await LinkAppleGameCenterAsync(
+                    signature.publicKeyUrl, signature.signature, signature.salt, timestamp, signature.teamPlayerId);
+#else
+                await Task.CompletedTask;
+                return CloudLinkResult.Fail("No platform account provider on this platform.");
+#endif
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[CloudSaveController] platform link failed: {e.Message}");
+                return CloudLinkResult.Fail(e.Message);
+            }
+            finally
+            {
+                _linking = false;
+            }
+        }
+
         // ── Migration ─────────────────────────────────────────────────────
 
         async Task TryMigrateAsync()
@@ -236,6 +337,12 @@ namespace Wagenheimer.CloudSave
             if (_o.OnSyncCompleted != null) CloudSync.OnSyncCompleted -= _o.OnSyncCompleted;
             CloudAuth.OnAccountSwitched -= HandleAccountSwitched;
             if (_installedSummaryProvider) CloudSaveUI.ConflictSummaryProvider = null;
+
+            if (_lifecycleGo != null)
+            {
+                UnityEngine.Object.Destroy(_lifecycleGo);
+                _lifecycleGo = null;
+            }
         }
     }
 }

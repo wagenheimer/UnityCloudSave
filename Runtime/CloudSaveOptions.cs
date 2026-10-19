@@ -108,6 +108,21 @@ namespace Wagenheimer.CloudSave
         /// <summary>Serializes a fresh/clean save to upload on reset, so other devices reset too. If null, the cloud slot is deleted instead.</summary>
         public Func<byte[]> SerializeCleanSave;
 
+        /// <summary>
+        /// Android: returns the Google Play Games server auth code used to link the anonymous UGS
+        /// account to GPGS (e.g. NativeSocial.GetServerAuthCode, or PlayGamesPlatform.RequestServerSideAccess).
+        /// Required only if you call <see cref="CloudSaveController.RequestPlatformLink"/> /
+        /// <see cref="CloudSaveController.LinkPlatformAsync"/> on Android.
+        /// </summary>
+        public Func<Task<string>> ServerAuthCodeProvider;
+
+        /// <summary>
+        /// When true (default), the controller installs a hidden runtime hook that calls
+        /// <see cref="CloudSaveController.FlushAsync"/> on <c>OnApplicationPause(true)</c> and
+        /// <c>OnApplicationQuit</c>, so the game doesn't need its own handlers.
+        /// </summary>
+        public bool FlushOnApplicationPause = true;
+
         internal void Validate()
         {
             if (string.IsNullOrEmpty(SaveKey))
