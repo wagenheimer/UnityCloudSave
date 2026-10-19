@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.30.3] - 2026-10-19
+
+### Added
+- add AccountDeletionUI component, design-time prefab generation and checker integration
+- in-place accordion toggle, scroll preservation, and store compliance detectors
+
+### Fixed
+- recognize NativeSocial and LinkProvider in Apple Game Center detector; bump to 4.30.2
+- add meta file for AccountDeletionUI.cs and qualify SetupRegistry.Ids
+
+### Changed
+- refactor(menu): streamline Cloud Save menus, add auto-init debug overlay, and document AccountDeletionUI
+- Fix syntax errors in AccountDeletionUI and add missing meta file
+
 ## [4.30.1] - 2026-10-19
 
 ### Fixed
