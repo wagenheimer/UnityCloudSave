@@ -52,7 +52,7 @@ The package automatically pulls in its dependencies:
 ### Pin to a specific version
 
 ```json
-"com.wagenheimer.cloudsave": "https://github.com/wagenheimer/UnityCloudSave.git#v4.31.3"
+"com.wagenheimer.cloudsave": "https://github.com/wagenheimer/UnityCloudSave.git#vX.Y.Z"
 ```
 
 ---
