@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.31.5] - 2026-10-29
+
+### Changed
+- chore(deps): use the unpinned Package Hub git URL
+
 ## [4.31.4] - 2026-10-29
 
 ### Changed
