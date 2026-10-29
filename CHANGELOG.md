@@ -1,5 +1,10 @@
 # Changelog
 
+## [4.31.4] - 2026-10-29
+
+### Changed
+- docs: update install pin and version badge to the current release
+
 ## [4.31.3] - 2026-10-19
 
 ## [4.31.1] - 2026-10-19
