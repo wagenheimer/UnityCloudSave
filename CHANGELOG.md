@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.31.6] - 2026-11-12
+
+### Changed
+- chore: ignore Git Bash crash dumps (*.stackdump)
+- chore: add issue and pull request templates [skip ci]
+- chore: add issue/PR templates and ecosystem footer [skip ci]
+
 ## [4.31.5] - 2026-10-29
 
 ### Changed
